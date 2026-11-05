@@ -30,7 +30,7 @@ Tilsyn og Rapporter kobles til Cibus-ejendomme (`services/cibus-property-matcher
 
 - Propbinders `GetTasks` har intet ejendomsfelt, så opgaver kobles kun via tidsregistreringer. Pr. 2026-11-05: 34 af 38 Cibus-ejendomme findes i Propbinder, men kun 8 opgaver på 5 ejendomme kan kobles (af ~134.800 opgaver i alt). Et ejendomsfilter på `GetTasks` fra Propbinder ville give fuld dækning.
 - Admin-login er p.t. det samme som i Fokus Nordic (`ADMIN_EMAIL` i `.env`); skift e-mail under Indstillinger → Min profil.
-- Kildefilerne til Tilsyn og Rapporter ligger lokalt i `kildefiler/` (kopieret fra Downloads 2026-11-05) og er udeladt fra Git, fordi GitHub-repoet er offentligt; læg dem selv i `kildefiler/tilsyn/` og `kildefiler/rapporter/` efter en klon. Før drift skal de hentes fra SharePoint eller en fælles mappe.
+- Kildefilerne til Tilsyn og Rapporter ligger lokalt i `kildefiler/` (kopieret fra Downloads 2026-11-05) og ligger også i Git-repoet. Før drift skal de hentes fra SharePoint eller en fælles mappe.
 - `pdfjs-dist` er installeret med `npm install pdfjs-dist@4.10.38 --ignore-scripts` (ren JavaScript, ingen bygning).
 - Mailnotifikationer kræver afsenderpostkasse og Mail.Send fra IT (samme som Fokus Nordic).
 
