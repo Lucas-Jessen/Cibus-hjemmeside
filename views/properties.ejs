@@ -1,0 +1,56 @@
+<%- include('partials/head', { title: workspace.title }) %>
+<%
+  const number = (value) => new Intl.NumberFormat('da-DK').format(value);
+  const active = properties.filter(property => property.status === 'AKTIV').length;
+  const ended = properties.filter(property => property.status === 'OPHØRT').length;
+  const portfolios = Object.entries(properties.reduce((counts, property) => { counts[property.portfolio] = (counts[property.portfolio] || 0) + 1; return counts; }, {})).filter(([name]) => name && name !== 'null').sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'da'));
+  const statuses = [...new Set(properties.map(property => property.status).filter(Boolean))].sort((a, b) => (a === 'AKTIV' ? -1 : b === 'AKTIV' ? 1 : a.localeCompare(b, 'da')));
+  const statusLabel = (status) => status ? status.charAt(0) + status.slice(1).toLocaleLowerCase('da') : '—';
+  const slug = (value) => String(value || '').toLocaleLowerCase('da').replace(/[^a-zæøå0-9]/g, '');
+  const searchText = (property) => property.searchFields.map(([, value]) => value).join(' ');
+  const fromSharePoint = source && source.kind === 'sharepoint';
+%>
+<body class="app-shell">
+  <%- include('partials/sidebar', { user, settings, currentPath }) %>
+  <main class="main-content">
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/workspaces/properties">Portefølje</a> <span>/</span> <strong><%= workspace.title %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? (fromSharePoint ? 'SharePoint-listen ændret ' : 'Udtræk opdateret ') + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Ejendomsoversigt' %></div></header>
+    <section class="page-content">
+      <div class="page-heading-row"><div><p class="eyebrow">EJENDOMSOVERSIGT · CIBUS REAL ESTATE</p><h1><%= workspace.title %></h1><p class="page-subtitle">Ejendomme med kunden Cibus Real Estate fra Forenede Services ejendomsoversigt. <%= fromSharePoint ? 'Data hentes direkte fra SharePoint-listen og kan ikke ændres her.' : 'Data læses fra udtrækket og kan ikke ændres her.' %></p></div><span class="mode-badge live"><span></span><%= fromSharePoint ? 'SharePoint' : 'Udtræk' %> · <%= number(properties.length) %> ejendomme</span></div>
+      <% if (source && source.warning) { %><div class="form-alert"><span>!</span><div><strong>Bemærk</strong><p><%= source.warning %></p></div></div><% } %><% if (error) { %><div class="form-alert"><span>!</span><div><strong><%= fromSharePoint ? 'SharePoint-listen kunne ikke læses' : 'Ejendomsudtrækket kunne ikke læses' %></strong><p><%= error %></p></div></div><% } else { %>
+        <div class="workspace-summary propbinder-summary">
+          <article class="stat-card"><div class="stat-top"><span>Ejendomme</span><span class="stat-icon blue">⌂</span></div><div class="stat-value"><%= number(properties.length) %></div><div class="stat-foot">Med kunden Cibus Real Estate</div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Aktive</span><span class="stat-icon green">✓</span></div><div class="stat-value"><%= number(active) %></div><div class="stat-foot">Status AKTIV</div><div class="stat-line green-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Ophørte</span><span class="stat-icon sand">○</span></div><div class="stat-value"><%= number(ended) %></div><div class="stat-foot">Status OPHØRT</div><div class="stat-line sand-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Porteføljer</span><span class="stat-icon blue">◈</span></div><div class="stat-value"><%= number(portfolios.length) %></div><div class="stat-foot">Største: <%= portfolios.slice(0, 3).map(([name, count]) => name + ' (' + count + ')').join(', ') %></div><div class="stat-line blue-line"></div></article>
+        </div>
+        <section class="panel records-panel" data-filter-scope>
+          <div class="panel-heading"><div><p class="eyebrow">EJENDOMSLISTE</p><h2>Ejendomme <span class="count-badge" data-filter-count><%= number(properties.length) %></span></h2></div><span class="read-only-label">Kun læsning</span></div>
+          <div class="prop-toolbar">
+            <label class="search-wrap prop-search"><span>⌕</span><input type="search" data-filter-search value="<%= query %>" placeholder="Søg i alt: navn, adresse, by, inspektør, ejer, CVR…" aria-label="Søg i alle ejendomsdata" autocomplete="off"></label>
+            <div class="prop-filter-group" role="group" aria-label="Status" data-filter-buttons="status"><span class="prop-filter-label">Status</span><button type="button" data-value="" aria-pressed="<%= statusFilter ? 'false' : 'true' %>">Alle <small><%= number(properties.length) %></small></button><% statuses.forEach(status => { %><button type="button" data-value="<%= status %>" aria-pressed="<%= statusFilter === status ? 'true' : 'false' %>"><%= statusLabel(status) %> <small><%= number(properties.filter(property => property.status === status).length) %></small></button><% }) %></div>
+            <label class="prop-select"><span class="prop-filter-label">Portefølje</span><select class="filter-select" data-filter-key="portfolio" aria-label="Portefølje"><option value="">Alle porteføljer</option><% portfolios.forEach(([name, count]) => { %><option value="<%= name %>" <%= portfolioFilter === name ? 'selected' : '' %>><%= name %> (<%= count %>)</option><% }) %></select></label>
+            <button type="button" class="filter-reset" data-filter-reset>Nulstil</button>
+          </div>
+          <div class="table-wrap"><table class="records-table propbinder-table fox-table prop-table">
+            <colgroup><col class="prop-col-name"><col class="prop-col-address"><col class="prop-col-address2"><col class="prop-col-zip"><col class="prop-col-city"><col class="prop-col-portfolio"><col class="prop-col-status"><col class="prop-col-inspector"><col class="prop-col-am"><col class="prop-col-owner"></colgroup>
+            <thead><tr><th>EJENDOMSNAVN</th><th>ADRESSE</th><th>ADRESSE 2</th><th>POSTNR.</th><th>BY</th><th>PORTEFØLJE</th><th>STATUS</th><th>INSPEKTØR</th><th>ASSET MANAGER</th><th>EJER</th></tr></thead>
+            <tbody><% properties.forEach(property => { %><tr data-filter-row data-f-status="<%= property.status || '' %>" data-f-portfolio="<%= property.portfolio || '' %>" data-search="<%= searchText(property) %>" data-fields="<%= JSON.stringify(property.searchFields) %>">
+              <td><span class="task-id"><%= property.number || '—' %><%= property.debtorNumber ? ' · Debitor ' + property.debtorNumber : '' %></span><strong class="task-property"><%= property.name %></strong><span class="task-property-meta"><%= property.workAreas || '' %></span><span class="prop-match-hint" data-match-hint hidden></span></td>
+              <td><span class="fox-cell-main"><%= property.address || '—' %></span></td>
+              <td><span class="fox-cell-main"><%= property.address2 || '—' %></span></td>
+              <td><span class="fox-cell-main"><%= property.zipCode || '—' %></span></td>
+              <td><span class="fox-cell-main"><%= property.city || '—' %></span></td>
+              <td><span class="fox-cell-main"><%= property.portfolio || '—' %></span><span class="task-property-meta"><%= property.segment || '' %></span></td>
+              <td><span class="record-status fox-pill prop-status-<%= slug(property.status) %>"><%= statusLabel(property.status) %></span></td>
+              <td><span class="fox-cell-main"><%= property.inspector || '—' %></span><span class="task-property-meta"><%= [property.inspectorBackup, property.inspectorBackup2].filter(Boolean).join(', ') %></span></td>
+              <td><span class="fox-cell-main"><%= property.assetManager || '—' %></span><% if (property.assetManagerEmail) { %><a class="task-property-meta prop-mail" href="mailto:<%= property.assetManagerEmail %>"><%= property.assetManagerEmail %></a><% } %></td>
+              <td><span class="fox-cell-main"><%= property.owner || '—' %></span><span class="task-property-meta"><%= property.cvr ? 'CVR ' + property.cvr : '' %></span></td>
+            </tr><% }) %></tbody>
+          </table></div>
+          <div class="empty-state compact" data-filter-empty hidden><strong>Ingen ejendomme matcher søgningen</strong><span>Prøv færre eller kortere søgeord, eller nulstil filtrene.</span></div>
+        </section>
+      <% } %>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span>Ejendomsoversigt · Forenede Service</span></footer>
+    </section>
+  </main>
+</body></html>

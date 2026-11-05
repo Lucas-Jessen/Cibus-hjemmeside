@@ -1,0 +1,9 @@
+node_modules/
+data/
+.env
+cookies.txt
+# Kundens kildefiler (tilsynsark, rapport-PDF) holdes ude af det offentlige repo
+kildefiler/**
+!kildefiler/tilsyn/
+!kildefiler/rapporter/
+!kildefiler/**/.gitkeep

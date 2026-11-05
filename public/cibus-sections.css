@@ -1,0 +1,54 @@
+/* Tilsyn and Rapporter og afvigelser. Builds on the dashboard (pb-*) and list (fox-*) styles. */
+.stat-card-link{display:block;color:inherit}
+.stat-card:has(.stat-card-link){transition:transform .18s,border-color .18s}
+.stat-card:has(.stat-card-link):hover{transform:translateY(-2px);border-color:#bfd7d6}
+.tilsyn-warn-value{color:#b5543c}
+
+.fox-pill.tilsyn-pill-under3{background:#dff2e4;color:#2f7a45}
+.fox-pill.tilsyn-pill-3til6{background:#e0f1f0;color:#025e5d}
+.fox-pill.tilsyn-pill-6til12{background:#fdf1d3;color:#8a6410}
+.fox-pill.tilsyn-pill-over12{background:#fbe5df;color:#a4432c}
+.fox-pill.tilsyn-pill-ukendt{background:#ecf0f0;color:#5d7675}
+
+.tilsyn-table .tilsyn-col-property{width:27%}
+.tilsyn-table .tilsyn-col-zip{width:13%}
+.tilsyn-table .tilsyn-col-date{width:15%}
+.tilsyn-table .tilsyn-col-status{width:11%}
+.tilsyn-table .tilsyn-col-remark{width:19%}
+
+.tilsyn-agenda{display:flex;flex-direction:column;gap:9px;margin:4px 0 0;padding:0;list-style:none}
+.tilsyn-agenda li{display:flex;align-items:center;gap:13px;padding:9px 11px;border:1px solid #e5eeee;border-radius:8px;background:#f8fbfb}
+.tilsyn-agenda-date{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;width:46px;height:46px;border-radius:9px;background:#025e5d;color:#d9ecea;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.tilsyn-agenda-date strong{color:#fff;font-size:17px;line-height:1}
+.tilsyn-agenda-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.tilsyn-agenda-text strong{color:#164342;font-size:11px}
+.tilsyn-agenda-text small{color:#6d8483;font-size:9px}
+.tilsyn-empty-note{color:#6d8483;font-size:11px}
+
+.tilsyn-coverage{display:flex;align-items:flex-start;gap:11px;margin-top:16px;padding:13px 14px;border-radius:8px;font-size:10px;line-height:1.6}
+.tilsyn-coverage>span{display:grid;flex:none;place-items:center;width:22px;height:22px;border-radius:50%;font-weight:700}
+.tilsyn-coverage strong{display:block;font-size:11px}
+.tilsyn-coverage p{margin:3px 0 0}
+.tilsyn-coverage.ok{background:#eef7f1;color:#2f6a44}
+.tilsyn-coverage.ok>span{background:#d5ecdc}
+.tilsyn-coverage.warn{background:#fdf5e3;color:#7a5a12}
+.tilsyn-coverage.warn>span{background:#f7e4b5}
+.rapport-ok{margin-top:4px}
+
+.rapport-kinds{margin-top:20px}
+.rapport-kind-bar svg{display:block;width:100%;height:12px;border-radius:6px;overflow:hidden}
+.rapport-kind-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 0;padding:0;list-style:none;font-size:10px;color:#4b6766}
+.rapport-kind-legend a{display:inline-flex;align-items:center;gap:6px;color:inherit}
+.rapport-kind-legend a:hover{color:#025e5d}
+.rapport-kind-legend strong{color:#164342}
+.rapport-freq-title{margin-top:18px}
+
+.fox-pill.rapport-kind-br18kontrol{background:#e0f1f0;color:#025e5d}
+.fox-pill.rapport-kind-lejersegenkontrol{background:#fdf1d3;color:#8a6410}
+.fox-pill.rapport-kind-øvrigteftersyn{background:#e6eef8;color:#3d6a9c}
+.rapport-schema{display:block;margin-top:6px}
+.rapport-table .rapport-col-date{width:12%}
+.rapport-table .rapport-col-schema{width:24%}
+.rapport-table .rapport-col-property{width:24%}
+.rapport-table .rapport-col-location{width:24%}
+.rapport-table .rapport-col-user{width:16%}

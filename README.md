@@ -1,0 +1,42 @@
+# Cibus-portalen (Cibus Real Estate × Forenede Service)
+
+Eksempel-portal bygget 2026-11-05 som en nedskåret kopi af Fokus Nordic-portalen (`../Fokus Nordic hjemmeside`). Samme opbygning og design, men med Cibus' grønne farve (`#025E5D`, fra footeren på cibusrealestate.com) i stedet for Fokus Nordics blå, og Cibus-logoet (`public/cibus-logo-white.svg` / `cibus-logo-green.svg`, hentet fra cibusrealestate.com).
+
+Læs denne README før større ændringer, og opdatér den i samme ændring.
+
+## Hurtig start
+
+Kræver Node.js 20+. `node_modules` er kopieret fra Fokus Nordic-projektet, fordi `npm install` ikke kan bygge `better-sqlite3` på denne maskine (ingen C++-compiler).
+
+1. `.env` er kopieret fra Fokus Nordic og tilpasset (port 3001, ny `SESSION_SECRET`, `PROPERTY_REGISTER_CUSTOMER=Cibus Real Estate`). Behold den privat.
+2. Kør `npm.cmd start` og åbn http://127.0.0.1:3001. Kan køre samtidig med Fokus Nordic (port 3000).
+3. Startbrugeren oprettes fra `ADMIN_EMAIL`/`ADMIN_PASSWORD`, når databasen (`data/cibus.sqlite`) er tom.
+
+Tests: `npm test`.
+
+## Sider
+
+- **Ejendomme** (`/workspaces/properties`): SharePoint-listen "Ejendomsoversigt" på sitet Ejendomsdrift via Microsoft Graph, kun rækker med **Kunde1 = Cibus Real Estate** (SharePoint filtrerer selv; filtreres igen i koden). Pr. 2026-11-05: 38 ejendomme, alle AKTIV, numre F4350–F4384.
+- **Propbinder-opgaver** (`/propbinder-tasks`, kun Admin): live opgaver fra Propbinder Partner API, kun på de aktive Cibus-ejendomme. Ejendomslisten til filteret kommer fra samme SharePoint-hentning (ingen Excel-fil); `EjendomNr` matches mod Propbinders `financeUnit`. Faner: Dashboard og Opgaveliste.
+- **Rapporter og afvigelser** (`/rapporter`, tilføjet 2026-11-05): det månedlige PDF-udtræk ("Rapporter og afvigelser CIBUS <måned>.pdf") fra `kildefiler/rapporter/` (`RAPPORTER_PATH`, mappe eller fil). **Alle** PDF'er i mappen læses, så nye måneder lægges bare ved siden af. Faner: Dashboard (rapporter pr. skema, uge, ejendom og bruger, kontroltyper, lejers egenkontrol pr. lejer, frekvens, afvigelser), Rapportliste og Afvigelser. Tabellen læses med `pdfjs-dist` ud fra kolonnernes x-position under overskriften (Dato, Skema, Lokation, Bruger); en række går fra én dato til den næste. Skemaet deles i kategori, frekvens og BR18-paragraf; lokationen i ejendom / område (lejer) / objekt. Oktober 2026: 42 rapporter på 10 ejendomme, **ingen afvigelser** (PDF'en har kun afsnittet "Rapporter"). Et afsnit med overskriften "Afvigelser" placeres automatisk under Afvigelser, men formatet er ikke set endnu og skal valideres, når et udtræk med afvigelser kommer.
+- **Tilsyn** (`/tilsyn`, tilføjet 2026-11-05): tilsynsarket ("Cibus tilsyn pr <dato>.xlsx", kolonner Ejendom, Postnummer, Seneste Tilsyn, Forrige tilsyn, Bemærkning) fra `kildefiler/tilsyn/` (`TILSYN_PATH`, mappe eller fil; i en mappe bruges den nyeste .xlsx). Faner: Dashboard (tid siden seneste tilsyn, tilsyn pr. måned, længst siden tilsyn, planlagte tilsyn, regioner, bemærkninger og Cibus-ejendomme uden tilsyn) og Tilsynsliste. Aldersgrupperne (under 3 / 3–6 / 6–12 / over 12 mdr.) er et eksempel – der er ikke aftalt et tilsynsinterval. "Planlagt til 6/11" (uden årstal) tolkes som første dato fra to måneder før i dag. Når "Forrige tilsyn" er lig "Seneste", vises det som "Kun ét tilsyn registreret". Pr. 2026-11-05: 42 rækker, alle koblet til et ejendomsnr.; Vestre Boulevard 3, Grindsted (F4479) mangler i arket.
+- **Indstillinger** (`/settings`): Min profil, Brugere (admin) og Notifikationer (Ejendomme, Tilsyn, Rapporter og afvigelser, Propbinder-opgaver).
+
+Tilsyn og Rapporter kobles til Cibus-ejendomme (`services/cibus-property-matcher.js`): første rigtige ord i navnet (de første 6 bogstaver, så "Halgårdvej" finder "Halgård Skolevej" og "Fjeldstrupsvej" finder "Fjelstrup Vej") mod ejendommens navn og adresser fra SharePoint; postnummer og husnummer afgør ved flere kandidater. "E/F", "GF" og "Gl." springes over. Rapportstier, som PDF'en har forkortet ("... / Pure Gym / 1. Sal"), kan ikke kobles og vises som "ikke koblet".
+
+`/` og `/dashboard` viderestiller til Ejendomme.
+
+## Kendte begrænsninger
+
+- Propbinders `GetTasks` har intet ejendomsfelt, så opgaver kobles kun via tidsregistreringer. Pr. 2026-11-05: 34 af 38 Cibus-ejendomme findes i Propbinder, men kun 8 opgaver på 5 ejendomme kan kobles (af ~134.800 opgaver i alt). Et ejendomsfilter på `GetTasks` fra Propbinder ville give fuld dækning.
+- Admin-login er p.t. det samme som i Fokus Nordic (`ADMIN_EMAIL` i `.env`); skift e-mail under Indstillinger → Min profil.
+- Kildefilerne til Tilsyn og Rapporter ligger lokalt i `kildefiler/` (kopieret fra Downloads 2026-11-05) og er udeladt fra Git, fordi GitHub-repoet er offentligt; læg dem selv i `kildefiler/tilsyn/` og `kildefiler/rapporter/` efter en klon. Før drift skal de hentes fra SharePoint eller en fælles mappe.
+- `pdfjs-dist` er installeret med `npm install pdfjs-dist@4.10.38 --ignore-scripts` (ren JavaScript, ingen bygning).
+- Mailnotifikationer kræver afsenderpostkasse og Mail.Send fra IT (samme som Fokus Nordic).
+
+## Arkitektur
+
+- `server.js`: Express-app, SQLite (brugere, indstillinger, sessioner, notifikationer), login/roller, de tre sider og Cibus-adapteren (`refreshCibusPropertyList`), der leverer ejendomslisten til Propbinder-filteret.
+- `services/inspection-service.js` (Tilsyn), `services/report-service.js` (PDF-rapporter) og `services/cibus-property-matcher.js`; views `views/tilsyn.ejs`, `views/rapporter.ejs`, styling `public/cibus-sections.css`. Tests: `test/cibus-sections.test.js`.
+- `services/`: Propbinder-klient/-service/-analytics, ejendomsregister + SharePoint-listeklient, notifikationer og mailer – uændret fra Fokus Nordic bortset fra mailemnet.
+- `views/`, `public/`: farverne er omregnet fra Fokus Nordics blå til Cibus-grøn (samme mætning/lyshed, hue 179°). Propbinders statusfarver er uændrede.

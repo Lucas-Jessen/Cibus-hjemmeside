@@ -1,0 +1,92 @@
+/* Status Fox: reuses the Propbinder dashboard classes (pb-*) and adds FOX-specific bits. */
+.fox-subtabs .section-tabs{margin:-8px 0 18px;border-bottom:0;gap:6px}
+.fox-subtabs .section-tab{min-height:32px;padding:0 14px;border:1px solid #dfe9e9;border-radius:999px;background:#fff;font-size:11px}
+.fox-subtabs .section-tab.active{border-color:#156766;background:#156766;color:#fff}
+.fox-money{font-size:26px}
+.fox-legend li{display:block}
+.fox-legend a{display:grid;grid-template-columns:10px minmax(0,1fr) auto 38px;align-items:center;gap:9px;padding:3px 6px;margin:0 -6px;border-radius:5px;color:inherit;text-decoration:none}
+.fox-legend a:hover{background:#f3f7f5}
+.pb-donut a,.pb-columns a{cursor:pointer}
+.pb-donut a:hover .pb-donut-slice{stroke-width:7}
+.fox-column-muted{fill:#b8cccc}
+.fox-money-bars a{grid-template-columns:minmax(0,40%) minmax(0,1fr) 92px}
+.fox-status-tilbudsfase{fill:#d5a34f;stroke:#d5a34f;background:#d5a34f}
+.fox-status-igangsat{fill:#52c0be;stroke:#52c0be;background:#52c0be}
+.fox-status-udført{fill:#58a68c;stroke:#58a68c;background:#58a68c}
+.fox-status-udgår{fill:#b8cccc;stroke:#b8cccc;background:#b8cccc}
+.fox-status-ikkeangivet{fill:#d6e3e3;stroke:#d6e3e3;background:#d6e3e3}
+.fox-pill.fox-status-tilbudsfase{background:#fdf1d3;color:#8a6410}
+.fox-pill.fox-status-igangsat{background:#e0f8f7;color:#2d9594}
+.fox-pill.fox-status-udført{background:#dff2e4;color:#2f7a45}
+.fox-pill.fox-status-udgår{background:#ecf0f0;color:#5d7675}
+.fox-pill.fox-status-ikkeangivet{background:#f3f7f7;color:#7b9695}
+.fox-toolbar{flex-direction:column;align-items:stretch;gap:10px}
+.fox-toolbar .search-wrap{width:100%;max-width:none}
+.fox-toolbar .propbinder-filters{justify-content:flex-start;flex-wrap:wrap}
+.fox-toolbar .filter-select{flex:1 1 120px;min-width:0;max-width:none;padding-right:28px}
+.filter-reset{height:40px;padding:0 14px;border:1px solid var(--line);border-radius:7px;background:#fff;color:#4e5954;font-size:11px;cursor:pointer}
+.filter-reset:hover{background:#f3f7f5}
+.fox-table{min-width:900px}
+.fox-table .fox-col-activity{width:29%}.fox-table .fox-col-property{width:17%}.fox-table .fox-col-trade{width:11%}.fox-table .fox-col-status{width:10%}.fox-table .fox-col-money{width:13%}.fox-table .fox-col-quarter{width:8%}.fox-table .fox-col-person{width:12%}
+.fox-cell-main{display:block;color:#164342;font-size:11px;font-weight:600;line-height:1.4}
+.fox-table .task-property-meta{display:block;margin-top:3px;color:#7c857e;font-size:9px;line-height:1.45}
+.fox-table .fox-pill{display:inline-block;white-space:nowrap}
+.fox-table .fox-note{margin-top:4px;color:#2d9594}
+.fox-over{color:#a5372a}.fox-under{color:#2f7a45}
+@media(max-width:760px){.fox-toolbar .filter-select{max-width:none;flex:1 1 140px}.fox-money-bars a{grid-template-columns:minmax(0,1fr) 92px}}
+.pb-donut .pb-donut-slice{fill:none}
+/* Forsikring: same dashboard/list building blocks as Status Fox. */
+.ins-unit{font-size:15px;font-weight:600;color:#748f8e}
+.ins-chart-note{margin:-4px 0 6px;color:#748f8e;font-size:10.5px;line-height:1.5}
+.ins-chart-note strong{color:#164342}
+.ins-table .ins-col-case{width:28%}.ins-table .ins-col-property{width:18%}.ins-table .ins-col-insurer{width:13%}.ins-table .ins-col-status{width:11%}.ins-table .ins-col-date{width:10%}.ins-table .ins-col-duration{width:9%}.ins-table .ins-col-money{width:11%}
+.fox-pill.ins-stage-aktiv{background:#e0f8f7;color:#2d9594}
+.fox-pill.ins-stage-underafslutning{background:#fdf1d3;color:#8a6410}
+.fox-pill.ins-stage-afsluttet{background:#dff2e4;color:#2f7a45}
+/* Ejendomme: search across all fields, status buttons and portfolio filter. */
+.prop-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.prop-toolbar .prop-search{flex:1 1 240px;min-width:220px;max-width:none}
+.prop-toolbar .prop-search input{font-size:12px}
+.prop-filter-label{display:block;margin-bottom:5px;color:#748f8e;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.prop-filter-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:0}
+.prop-filter-group .prop-filter-label{flex-basis:100%}
+.prop-filter-group button{height:40px;padding:0 14px;border:1px solid var(--line);background:#fff;color:#4e5954;font-size:11px;font-weight:600;cursor:pointer}
+.prop-filter-group button+button{margin-left:-1px}
+.prop-filter-group button:nth-child(2){border-radius:7px 0 0 7px}
+.prop-filter-group button:last-child{border-radius:0 7px 7px 0}
+.prop-filter-group button small{margin-left:4px;color:#89a1a0;font-size:10px;font-weight:500}
+.prop-filter-group button[aria-pressed="true"]{position:relative;z-index:1;border-color:#156766;background:#156766;color:#fff}
+.prop-filter-group button[aria-pressed="true"] small{color:#ceebea}
+.prop-select .filter-select{min-width:190px}
+.prop-table{min-width:1000px}
+.prop-table .prop-col-name{width:14%}.prop-table .prop-col-address{width:11.5%}.prop-table .prop-col-address2{width:11%}.prop-table .prop-col-zip{width:6.5%}.prop-table .prop-col-city{width:9%}.prop-table .prop-col-portfolio{width:8%}.prop-table .prop-col-status{width:7%}.prop-table .prop-col-inspector{width:11%}.prop-table .prop-col-am{width:11.5%}.prop-table .prop-col-owner{width:10.5%}
+.prop-table th{white-space:nowrap}
+.prop-table .prop-mail{color:#2d9594;text-decoration:none;overflow-wrap:anywhere}
+.prop-table .prop-mail:hover{text-decoration:underline}
+.prop-match-hint{display:block;margin-top:5px;color:#8a6410;font-size:9px;font-weight:600}
+.fox-pill.prop-status-aktiv{background:#dff2e4;color:#2f7a45}
+.fox-pill.prop-status-ophørt{background:#ecf0f0;color:#5d7675}
+::highlight(filter-match-0),::highlight(filter-match-1){background:#fbe7a6;color:inherit}
+@media(max-width:760px){.prop-toolbar{align-items:stretch}.prop-select,.prop-select .filter-select{width:100%}}
+/* Vedligeholdsbudgetter: DV-budget status per portfolio. */
+.maintenance-subtabs .section-tabs{margin-top:14px}
+.dv-wide{grid-column:1 / -1}
+.dv-all-link{text-decoration:none;color:inherit}
+.dv-all-link:hover{background:#e3f1f1}
+.dv-bars .dv-bar-row{display:block}
+.dv-bars .dv-missing-link{display:inline-block;margin:-2px 0 4px 8px;color:#a5372a;font-size:9.5px;font-weight:600;text-decoration:none}
+.dv-bars .dv-missing-link:hover{text-decoration:underline}
+.dv-bars a:first-child{grid-template-columns:minmax(0,42%) minmax(0,1fr) 72px}
+.dv-wide .dv-bars a:first-child{grid-template-columns:minmax(0,30%) minmax(0,1fr) 72px}
+.dv-table{min-width:900px}
+.dv-table .dv-col-property{width:30%}.dv-table .dv-col-portfolio{width:16%}.dv-table .dv-col-checks{width:32%}.dv-table .dv-col-dates{width:22%}
+.dv-checks{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.dv-checks li{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:600;line-height:1.3}
+.dv-check-ok{background:#dff2e4;color:#2f7a45}
+.dv-check-missing{background:#fbe1dd;color:#a5372a}
+.dv-dates{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;margin:0;font-size:9.5px;line-height:1.45}
+.dv-dates dt{color:#89a1a0}.dv-dates dd{margin:0;color:#164342;font-weight:600}
+.dv-check-filters{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.dv-check-filter .filter-select{width:100%;min-width:0}
+.dv-check-filter .prop-filter-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

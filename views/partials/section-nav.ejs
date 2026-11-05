@@ -1,0 +1,5 @@
+<nav class="section-tabs" aria-label="<%= sectionNav.title %> undersektioner">
+  <% sectionNav.tabs.forEach((tab) => { %>
+    <a class="section-tab <%= tab.active ? 'active' : '' %>" href="<%= tab.href %>" <%= tab.active ? 'aria-current="page"' : '' %>><%= tab.label %></a>
+  <% }) %>
+</nav>

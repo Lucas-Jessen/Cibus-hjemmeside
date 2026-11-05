@@ -1,0 +1,7 @@
+.section-tabs { display: flex; gap: 8px; margin: 18px 0 20px; overflow-x: auto; border-bottom: 1px solid #dfe9e9; scrollbar-width: thin; }
+.section-tab { flex: 0 0 auto; min-height: 42px; display: inline-flex; align-items: center; padding: 0 16px; border-bottom: 3px solid transparent; color: #517a79; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.section-tab:hover { color: #156766; background: #f3f7f5; }
+.section-tab.active { border-bottom-color: #59a785; color: #156766; }
+.section-files-panel { margin-bottom: 18px; }
+.section-files-panel .table-wrap { max-height: 400px; }
+@media (max-width: 680px) { .section-tabs { gap: 2px; margin: 14px 0 16px; } .section-tab { min-height: 40px; padding: 0 11px; font-size: 11px; } }

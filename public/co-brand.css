@@ -1,0 +1,41 @@
+@font-face { font-family: "Urbanist"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/urbanist-latin-400.woff2") format("woff2"); }
+.co-brand-lockup { display: inline-flex; align-items: center; gap: 9px; width: max-content; max-width: 100%; color: #fff; }
+.co-brand-lockup .co-brand-focus { width: 116px; height: auto; filter: brightness(0) invert(1); }
+.co-brand-x { color: #87d3c6; font-size: 16px; font-weight: 500; }
+.co-brand-forenede { display: inline-flex; align-items: center; gap: .3em; color: inherit; font-size: 18px; }
+.co-brand-globe { flex: none; width: 1.36em; height: 1.32em; background: currentColor; -webkit-mask: url("/forenede-globe.png") center / contain no-repeat; mask: url("/forenede-globe.png") center / contain no-repeat; }
+.co-brand-wordmark { display: inline-flex; flex-direction: column; align-items: flex-end; font-family: "Urbanist", "Segoe UI", Arial, sans-serif; font-weight: 400; font-size: 1em; line-height: .9; letter-spacing: 0; white-space: nowrap; }
+.co-brand-wordmark small { font-size: .62em; line-height: 1.1; }
+.co-brand-lockup--light { color: #025e5d; }
+.co-brand-lockup--light .co-brand-focus { filter: none; }
+.co-brand-lockup--light .co-brand-x { color: #4f9d93; }
+.sidebar .co-brand-lockup { gap: 6px; }
+.sidebar .co-brand-lockup .co-brand-focus { width: 99px; }
+.sidebar .co-brand-forenede { font-size: 15px; }
+.focus-partner-mark { color: #fff; font-size: 16px; }
+.focus-panel .focus-top { align-items: center; }
+.focus-panel .focus-tag { color: #d8ece8; }
+.login-story::after, .sidebar::after, .focus-panel::after { content: ""; position: absolute; background: #fff; -webkit-mask: url("/forenede-globe.png") center / contain no-repeat; mask: url("/forenede-globe.png") center / contain no-repeat; opacity: .05; pointer-events: none; }
+.login-story::after { z-index: 0; right: -70px; bottom: 4%; width: min(42vw, 350px); aspect-ratio: 1; }
+.sidebar { isolation: isolate; }
+.sidebar::after { z-index: 0; right: -34px; bottom: 95px; width: 150px; aspect-ratio: 1; opacity: .035; }
+.sidebar > :not(.brand-pattern-overlay) { position: relative; z-index: 1; }
+.focus-panel::after { right: -20px; bottom: -35px; width: 185px; aspect-ratio: 1; }
+.focus-panel .focus-top, .focus-panel > .eyebrow, .focus-panel > h2, .focus-panel > p, .focus-panel > .country-list, .focus-panel > .button { position: relative; z-index: 1; }
+@media (max-width: 1100px) {
+  .sidebar .co-brand-lockup { gap: 5px; }
+  .sidebar .co-brand-lockup .co-brand-focus { width: 84px; }
+  .sidebar .co-brand-forenede { font-size: 13px; }
+}
+@media (max-width: 760px) {
+  .sidebar .co-brand-lockup { justify-content: center; width: 42px; height: 40px; overflow: hidden; }
+  .sidebar .co-brand-lockup .co-brand-focus, .sidebar .co-brand-lockup .co-brand-x, .sidebar .co-brand-wordmark { display: none; }
+  .sidebar .co-brand-forenede { font-size: 22px; }
+  .co-brand-lockup--light { gap: 8px; }
+  .co-brand-lockup--light .co-brand-focus { width: 110px; }
+  .co-brand-lockup--light .co-brand-forenede { font-size: 17px; }
+}
+@media (max-width: 390px) {
+  .co-brand-lockup--light .co-brand-focus { width: 98px; }
+  .co-brand-lockup--light .co-brand-forenede { font-size: 15px; }
+}

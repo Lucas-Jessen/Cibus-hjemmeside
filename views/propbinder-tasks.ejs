@@ -1,0 +1,101 @@
+<%- include('partials/head', { title: 'Propbinder-opgaver' }) %>
+<%
+  const isLive = service.mode === 'live';
+  const isDashboard = sectionNav.activeKey === 'dashboard';
+  const statuses = [...new Set(tasks.map(task => task.status))].sort((a, b) => a.localeCompare(b, 'da'));
+  const unmappedStatusIds = Object.entries(tasks.filter(task => task.status === 'Ukendt' && task.statusId).reduce((counts, task) => { counts[task.statusId] = (counts[task.statusId] || 0) + 1; return counts; }, {})).sort((a, b) => b[1] - a[1]);
+  const showProperty = tasks.some(task => task.property);
+  const showPriority = tasks.some(task => task.priority);
+  const propertyOptions = [...new Map(tasks.filter(task => task.property).map(task => [task.property, task.propertyNumber])).entries()].sort((a, b) => a[0].localeCompare(b[0], 'da'));
+  const filter = service.filter;
+  const warnings = service.warnings || [];
+  const number = (value) => new Intl.NumberFormat('da-DK').format(value);
+  const formatDate = (value) => value ? new Date(value).toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const shorten = (text) => text.length > 180 ? text.slice(0, 177).trimEnd() + '…' : text;
+  const listHref = (params) => '/propbinder-tasks?section=opgaveliste&' + Object.entries(params).map(([key, value]) => key + '=' + encodeURIComponent(value)).join('&');
+  const percent = (count, max) => max ? Math.max(2, Math.round(count / max * 100)) : 0;
+%>
+<body class="app-shell">
+  <%- include('partials/sidebar', { user, settings, currentPath }) %>
+  <main class="main-content">
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/propbinder-tasks">Propbinder-opgaver</a> <span>/</span> <strong><%= sectionNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= isLive && service.fetchedAt ? 'Hentet ' + new Date(service.fetchedAt).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }) : 'Read-only integration' %></div></header>
+    <section class="page-content">
+      <div class="page-heading-row"><div><p class="eyebrow">PROPBINDER · <%= isLive ? 'LIVE DATA' : 'TESTDATA' %></p><h1>Opgaver</h1><p class="page-subtitle"><%= isLive ? 'Opgaver hentet direkte fra Propbinder Partner API. Data opdateres højst hvert minut og kan ikke ændres her.' : 'En opsætning af opgaver tilknyttede til kunden. Data er læsbare og kan ikke ændres.' %></p></div><span class="mode-badge <%= service.mode %>"><span></span><%= isLive ? 'Live data' : 'Testdata' %></span></div>
+      <%- include('partials/section-nav', { sectionNav }) %>
+      <% if (error) { %><div class="form-alert"><span>!</span><div><strong>Kunne ikke hente opgaver fra Propbinder</strong><p><%= error %></p></div></div><% } %>
+      <% if (filter) { %><div class="propbinder-filter-note"><strong>Viser <%= number(filter.shown) %> af <%= number(filter.total) %> opgaver</strong> — kun opgaver på de <%= filter.propertyCount %> Cibus-ejendomme fra SharePoint-listen (ændret <%= new Date(filter.listModifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>).<% if (filter.unlinked || filter.otherProperties) { %> Udeladt: <%= number(filter.otherProperties) %> på andre ejendomme, <%= number(filter.unlinked) %> uden kendt ejendom.<% } %></div><% } else if (isLive && !service.propertyFilterConfigured) { %><div class="propbinder-filter-note"><strong>Ingen ejendomsfilter.</strong> Angiv <code>PROPERTY_LIST_PATH</code> i <code>.env</code> for kun at vise opgaver på ejendommene i Ejendomslisten.</div><% } %>
+      <% warnings.forEach(warning => { %><div class="form-alert propbinder-status-hint"><span>!</span><div><strong>Bemærk</strong><p><%= warning %></p></div></div><% }) %>
+      <% if (unmappedStatusIds.length) { %><details class="propbinder-status-hint propbinder-details"><summary><strong>Statusnavne mangler</strong> — <%= unmappedStatusIds.length %> status-id'er uden navn</summary><p>Propbinder sender status som id'er. Tilføj navne i <code>.env</code> som <code>PROPBINDER_TASK_STATUSES=id=Åben;id=Afsluttet</code>. Fundne id'er: <% unmappedStatusIds.forEach(([id, count], index) => { %><code><%= id %></code> (<%= number(count) %>)<%= index < unmappedStatusIds.length - 1 ? ', ' : '' %><% }) %>.</p></details><% } %>
+
+      <% if (isDashboard) { const a = analytics; %>
+        <div class="workspace-summary propbinder-summary">
+          <article class="stat-card"><div class="stat-top"><span>Opgaver</span><span class="stat-icon blue">☷</span></div><div class="stat-value"><%= number(a.totals.tasks) %></div><div class="stat-foot">På <%= a.totals.properties %> ejendomme</div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Gentagne opgaver</span><span class="stat-icon green">↻</span></div><div class="stat-value"><%= number(a.totals.recurringGroups) %></div><div class="stat-foot">Titler brugt flere gange (<%= number(a.totals.recurringTasks) %> opgaver)</div><div class="stat-line green-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Frist inden 30 dage</span><span class="stat-icon sand">◷</span></div><div class="stat-value"><%= number(a.totals.dueSoon) %></div><div class="stat-foot"><%= unmappedStatusIds.length ? 'Ukendt status tælles som åben' : 'Ikke afsluttede' %></div><div class="stat-line sand-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Frist overskredet</span><span class="stat-icon sand">!</span></div><div class="stat-value"><%= number(a.totals.overdue) %></div><div class="stat-foot"><%= unmappedStatusIds.length ? 'Frist før i dag; ukendt status tælles som åben' : 'Frist før i dag, ikke afsluttet' %></div><div class="stat-line sand-line"></div></article>
+        </div>
+        <% if (!a.totals.tasks) { %><div class="empty-state workspace-empty panel"><span class="empty-icon">☷</span><strong>Ingen opgaver at vise grafer for</strong></div><% } else { %>
+        <div class="pb-dashboard-grid">
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">STATUS</p><h2>Fordeling af opgavestatus</h2></div></div>
+            <% const statusTotal = a.statuses.reduce((sum, item) => sum + item.count, 0); let offset = 25; %>
+            <div class="pb-donut-layout">
+              <svg class="pb-donut" viewBox="0 0 42 42" role="img" aria-label="Fordeling af opgavestatus"><title>Fordeling af opgavestatus</title><circle class="pb-donut-track" cx="21" cy="21" r="15.915"></circle><% a.statuses.forEach((item, index) => { const share = item.count / statusTotal * 100; %><circle class="pb-donut-slice pb-c<%= index % 8 %>" cx="21" cy="21" r="15.915" stroke-dasharray="<%= share.toFixed(3) %> <%= (100 - share).toFixed(3) %>" stroke-dashoffset="<%= offset.toFixed(3) %>"><title><%= item.label %>: <%= number(item.count) %></title></circle><% offset -= share; }) %><text class="pb-donut-value" x="21" y="21.5"><%= number(statusTotal) %></text><text class="pb-donut-label" x="21" y="26">OPGAVER</text></svg>
+              <ul class="pb-legend"><% a.statuses.forEach((item, index) => { %><li><span class="pb-swatch pb-c<%= index % 8 %>"></span><span class="pb-legend-label"><%= item.label %></span><strong><%= number(item.count) %></strong><span class="pb-legend-share"><%= Math.round(item.count / statusTotal * 100) %>%</span></li><% }) %></ul>
+            </div>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver pr. måned</h2></div><span class="count-badge">12 mdr.</span></div>
+            <% const monthMax = Math.max(1, ...a.perMonth.map(m => m.count)); const colWidth = 600 / a.perMonth.length; %>
+            <svg class="pb-columns" viewBox="0 0 600 230" role="img" aria-label="Oprettede opgaver pr. måned"><title>Oprettede opgaver pr. måned</title>
+              <line class="pb-axis" x1="0" y1="190" x2="600" y2="190"></line>
+              <% a.perMonth.forEach((month, index) => { const height = Math.round(month.count / monthMax * 160); const x = index * colWidth + colWidth * 0.2; %>
+                <rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.6).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= month.label %> <%= month.year %>: <%= number(month.count) %></title></rect>
+                <% if (month.count) { %><text class="pb-column-value" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="<%= 184 - height %>"><%= number(month.count) %></text><% } %>
+                <text class="pb-column-label" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="208"><%= month.label %></text>
+                <% if (index === 0 || month.label === 'jan') { %><text class="pb-column-year" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="224"><%= month.year %></text><% } %>
+              <% }) %>
+            </svg>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">EJENDOMME</p><h2>Flest opgaver pr. ejendom</h2></div><span class="count-badge">Top <%= a.byProperty.length %></span></div>
+            <% const propertyMax = a.byProperty.length ? a.byProperty[0].count : 0; %>
+            <ol class="pb-bars"><% a.byProperty.forEach(item => { %><li><a href="<%= listHref({ property: item.property }) %>" title="Vis opgaver på <%= item.property %>"><span class="pb-bar-label"><%= item.property %><small><%= item.propertyNumber || '' %></small></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill pb-c0" width="<%= percent(item.count, propertyMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">GENTAGNE OPGAVER</p><h2>Hyppigste opgavetitler</h2></div><span class="count-badge">Top <%= a.recurringTitles.length %></span></div>
+            <% const titleMax = a.recurringTitles.length ? a.recurringTitles[0].count : 0; %>
+            <% if (a.recurringTitles.length) { %><ol class="pb-bars"><% a.recurringTitles.forEach(item => { %><li><a href="<%= listHref({ q: item.title }) %>" title="Vis opgaver med denne titel"><span class="pb-bar-label"><%= item.title %><small>på <%= item.propertyCount %> <%= item.propertyCount === 1 ? 'ejendom' : 'ejendomme' %></small></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill pb-c1" width="<%= percent(item.count, titleMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol><% } else { %><div class="empty-state compact"><strong>Ingen gentagne opgavetitler</strong></div><% } %>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">ANSVARLIGE</p><h2>Opgaver pr. ansvarlig</h2></div><span class="count-badge">Top <%= a.byResponsible.length %></span></div>
+            <% const responsibleMax = a.byResponsible.length ? a.byResponsible[0].count : 0; %>
+            <ol class="pb-bars"><% a.byResponsible.forEach(item => { %><li><a href="<%= listHref({ q: item.name }) %>" title="Vis opgaver for <%= item.name %>"><span class="pb-bar-label"><%= item.name %></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill pb-c2" width="<%= percent(item.count, responsibleMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol>
+          </section>
+        </div>
+        <% } %>
+      <% } else { %>
+        <section class="panel records-panel">
+          <div class="panel-heading"><div><p class="eyebrow">OPGAVELISTE</p><h2>Aktuelle opgaver <span class="count-badge" data-propbinder-count><%= number(tasks.length) %></span></h2></div><span class="read-only-label">Kun læsning</span></div>
+          <% if (tasks.length) { %>
+            <div class="propbinder-toolbar">
+              <label class="search-wrap"><span>⌕</span><input type="search" data-propbinder-search value="<%= listFilters.q %>" placeholder="Søg efter opgave, nummer eller ansvarlig" aria-label="Søg opgaver"></label>
+              <div class="propbinder-filters"><% if (propertyOptions.length > 1) { %><select class="filter-select" data-propbinder-property aria-label="Filtrér på ejendom"><option value="">Alle ejendomme</option><% propertyOptions.forEach(([name, propertyNumber]) => { %><option value="<%= name %>" <%= listFilters.property === name ? 'selected' : '' %>><%= name %><%= propertyNumber ? ' (' + propertyNumber + ')' : '' %></option><% }) %></select><% } %><select class="filter-select" data-propbinder-status aria-label="Filtrér på status"><option value="">Alle statusser</option><% statuses.forEach(status => { %><option value="<%= status %>"><%= status %></option><% }) %></select></div>
+            </div>
+            <div class="table-wrap"><table class="records-table propbinder-table">
+              <colgroup><col class="pb-col-task"><% if (showProperty) { %><col class="pb-col-property"><% } %><col class="pb-col-status"><% if (showPriority) { %><col class="pb-col-priority"><% } %><col class="pb-col-date"><col class="pb-col-person"><col class="pb-col-date"></colgroup>
+              <thead><tr><th>OPGAVE</th><% if (showProperty) { %><th>EJENDOM</th><% } %><th>STATUS</th><% if (showPriority) { %><th>PRIORITET</th><% } %><th>FRIST</th><th>ANSVARLIG</th><th>OPDATERET</th></tr></thead>
+              <tbody><% tasks.forEach(task => { %><tr data-propbinder-row data-status="<%= task.status %>" data-property="<%= task.property || '' %>"><td><div class="task-title-cell"><span class="task-id"><%= /^\d+$/.test(task.id) ? '#' + task.id : task.id %></span><strong><%= task.title %></strong><p><%= task.description ? shorten(task.description) : 'Ingen beskrivelse er tilgængelig.' %></p></div></td><% if (showProperty) { %><td><% if (task.property) { %><strong class="task-property"><%= task.property %></strong><span class="task-property-meta"><%= [task.propertyNumber, task.propertyAddress].filter(Boolean).join(' · ') %></span><% } else { %>—<% } %></td><% } %><td><span class="record-status status-<%= task.status.toLowerCase().replace(/[^a-zæøå]/g, '') %>"><%= task.status %></span></td><% if (showPriority) { %><td><% if (task.priority) { %><span class="priority-pill priority-<%= String(task.priority).toLowerCase() %>"><%= task.priority %></span><% } else { %>—<% } %></td><% } %><td class="date-cell"><%= formatDate(task.dueDate) %></td><td class="pb-person-cell"><%= task.assignedTo || '—' %></td><td class="date-cell"><%= formatDate(task.updatedAt || task.createdAt) %></td></tr><% }) %></tbody>
+            </table></div>
+            <div class="empty-state compact" data-propbinder-empty hidden><strong>Ingen opgaver matcher filtrene</strong></div>
+          <% } else { %><div class="empty-state workspace-empty"><span class="empty-icon">☷</span><strong>Der er ingen opgaver at vise</strong><span><%= isLive ? (error ? 'Se fejlen ovenfor.' : 'Propbinder returnerede ingen opgaver.') : 'Testdata er ikke konfigureret.' %></span></div><% } %>
+        </section>
+      <% } %>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span>Propbinder integration · read-only</span></footer>
+    </section>
+  </main>
+</body></html>

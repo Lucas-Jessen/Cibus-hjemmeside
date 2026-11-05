@@ -1,0 +1,128 @@
+<%- include('partials/head', { title: 'Rapporter og afvigelser' }) %>
+<%
+  const number = (value) => new Intl.NumberFormat('da-DK').format(value);
+  const date = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) => iso ? new Date(iso + 'T00:00:00Z').toLocaleDateString('da-DK', { ...opts, timeZone: 'UTC' }) : '—';
+  const listHref = '/rapporter?view=liste';
+  const filterHref = (params) => listHref + '&' + Object.entries(params).map(([key, value]) => key + '=' + encodeURIComponent(value)).join('&');
+  const percent = (value, max) => max ? Math.max(2, Math.round(value / max * 100)) : 0;
+  const options = (rows, key) => [...new Set(rows.map(item => item[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'da'));
+  const kindClass = { 'BR18-kontrol': 'pb-c0', 'Lejers egenkontrol': 'pb-c2', 'Øvrigt eftersyn': 'pb-c5' };
+  const slug = (value) => String(value || '').toLocaleLowerCase('da').replace(/[^a-zæøå0-9]/g, '');
+  const months = [...new Set(reports.concat(deviations).map(r => r.date && r.date.slice(0, 7)).filter(Boolean))].sort();
+  const period = months.length ? months.map(m => new Date(m + '-01T00:00:00Z').toLocaleDateString('da-DK', { month: 'long', year: 'numeric', timeZone: 'UTC' })).join(', ') : '';
+%>
+<body class="app-shell">
+  <%- include('partials/sidebar', { user, settings, currentPath }) %>
+  <main class="main-content">
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/rapporter">Rapporter og afvigelser</a> <span>/</span> <strong><%= viewNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? source.files.length + ' PDF-udtræk · opdateret ' + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Månedsudtræk' %></div></header>
+    <section class="page-content">
+      <div class="page-heading-row"><div><p class="eyebrow">RAPPORTER OG AFVIGELSER<%= period ? ' · ' + period.toUpperCase() : '' %></p><h1>Rapporter og afvigelser</h1><p class="page-subtitle">Udførte kontroller på Cibus' ejendomme fra det månedlige udtræk: lovpligtige BR18-kontroller (brandtekniske installationer), lejers egenkontrol og øvrige eftersyn, samt registrerede afvigelser. Data læses fra PDF-filen og kan ikke ændres her.</p></div><span class="mode-badge live"><span></span>PDF · <%= number(reports.length) %> rapporter</span></div>
+      <%- include('partials/section-nav', { sectionNav: viewNav }) %>
+      <% if (error) { %><div class="form-alert"><span>!</span><div><strong>Rapportudtrækket kunne ikke læses</strong><p><%= error %></p></div></div><% } %>
+
+      <% if (view === 'dashboard' && !error) { const a = analytics; %>
+        <div class="workspace-summary propbinder-summary">
+          <article class="stat-card"><a class="stat-card-link" href="<%= listHref %>"><div class="stat-top"><span>Rapporter</span><span class="stat-icon blue">▤</span></div><div class="stat-value"><%= number(a.totals.reports) %></div><div class="stat-foot">På <%= number(a.totals.properties) %> ejendomme · <%= number(a.totals.activeDays) %> dage med kontrol</div><div class="stat-line blue-line"></div></a></article>
+          <article class="stat-card"><a class="stat-card-link" href="/rapporter?view=afvigelser"><div class="stat-top"><span>Afvigelser</span><span class="stat-icon <%= a.totals.deviations ? 'sand' : 'green' %>"><%= a.totals.deviations ? '!' : '✓' %></span></div><div class="stat-value"><%= number(a.totals.deviations) %></div><div class="stat-foot"><%= a.totals.deviations ? 'Registreret i perioden' : 'Ingen afvigelser registreret i perioden' %></div><div class="stat-line <%= a.totals.deviations ? 'sand' : 'green' %>-line"></div></a></article>
+          <article class="stat-card"><a class="stat-card-link" href="<%= filterHref({ type: 'BR18-kontrol' }) %>"><div class="stat-top"><span>BR18-kontroller</span><span class="stat-icon blue">◈</span></div><div class="stat-value"><%= number(a.totals.br18) %></div><div class="stat-foot">Lovpligtige kontroller af brandtekniske installationer</div><div class="stat-line blue-line"></div></a></article>
+          <article class="stat-card"><a class="stat-card-link" href="<%= filterHref({ type: 'Lejers egenkontrol' }) %>"><div class="stat-top"><span>Lejers egenkontrol</span><span class="stat-icon sand">⌂</span></div><div class="stat-value"><%= number(a.totals.tenantChecks) %></div><div class="stat-foot">Gennemgået hos <%= number(new Set(reports.filter(r => r.kind === 'Lejers egenkontrol').map(r => r.area + r.property)).size) %> lejere</div><div class="stat-line sand-line"></div></a></article>
+        </div>
+        <% if (!a.totals.reports) { %><div class="empty-state workspace-empty panel"><span class="empty-icon">▤</span><strong>Ingen rapporter i udtrækket</strong></div><% } else { %>
+        <div class="pb-dashboard-grid">
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">KONTROLTYPER</p><h2>Rapporter pr. skema</h2></div><span class="count-badge"><%= a.categories.length %> skemaer</span></div>
+            <% let offset = 25; %>
+            <div class="pb-donut-layout">
+              <svg class="pb-donut" viewBox="0 0 42 42" role="img" aria-label="Rapporter pr. skema"><title>Rapporter pr. skema</title><circle class="pb-donut-track" cx="21" cy="21" r="15.915"></circle><% a.categories.forEach((item, index) => { const share = item.count / a.totals.reports * 100; %><a href="<%= filterHref({ kategori: item.label }) %>"><circle class="pb-donut-slice pb-c<%= index % 8 %>" cx="21" cy="21" r="15.915" stroke-dasharray="<%= share.toFixed(3) %> <%= (100 - share).toFixed(3) %>" stroke-dashoffset="<%= offset.toFixed(3) %>"><title><%= item.label %>: <%= number(item.count) %></title></circle></a><% offset -= share; }) %><text class="pb-donut-value" x="21" y="21.5"><%= number(a.totals.reports) %></text><text class="pb-donut-label" x="21" y="26">RAPPORTER</text></svg>
+              <ul class="pb-legend fox-legend"><% a.categories.forEach((item, index) => { %><li><a href="<%= filterHref({ kategori: item.label }) %>"><span class="pb-swatch pb-c<%= index % 8 %>"></span><span class="pb-legend-label"><%= item.label %></span><strong><%= number(item.count) %></strong><span class="pb-legend-share"><%= Math.round(item.count / a.totals.reports * 100) %>%</span></a></li><% }) %></ul>
+            </div>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">FORLØB</p><h2>Rapporter pr. uge</h2></div><span class="count-badge"><%= date(a.totals.firstDate, { day: 'numeric', month: 'short' }) %> – <%= date(a.totals.lastDate, { day: 'numeric', month: 'short' }) %></span></div>
+            <% const weekMax = Math.max(1, ...a.weeks.map(w => w.count)); const colWidth = 600 / Math.max(4, a.weeks.length); %>
+            <svg class="pb-columns" viewBox="0 0 600 230" role="img" aria-label="Rapporter pr. uge"><title>Rapporter pr. uge</title>
+              <line class="pb-axis" x1="0" y1="190" x2="600" y2="190"></line>
+              <% a.weeks.forEach((week, index) => { const height = Math.round(week.count / weekMax * 160); const x = index * colWidth + colWidth * 0.22; const center = (x + colWidth * 0.28).toFixed(1); const places = week.places; %>
+                <rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.56).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= week.label %>: <%= number(week.count) %> rapporter – <%= places.join(', ') %></title></rect>
+                <text class="pb-column-value" x="<%= center %>" y="<%= 184 - height %>"><%= number(week.count) %></text>
+                <text class="pb-column-label" x="<%= center %>" y="208"><%= week.label %></text>
+                <text class="pb-column-year" x="<%= center %>" y="224"><%= places.length %> ejendom<%= places.length === 1 ? '' : 'me' %></text>
+              <% }) %>
+            </svg>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">EJENDOMME</p><h2>Rapporter pr. ejendom</h2></div><span class="count-badge"><%= a.properties.length %> ejendomme</span></div>
+            <% const propertyMax = Math.max(0, ...a.properties.map(item => item.count)); %>
+            <ol class="pb-bars"><% a.properties.forEach(item => { %><li><a href="<%= filterHref({ ejendom: item.label }) %>" title="Vis rapporter på <%= item.label %>"><span class="pb-bar-label"><%= item.label %><small><%= item.number ? item.number + ' · ' : '' %><%= item.kinds.map(k => number(k.count) + ' ' + k.label.toLocaleLowerCase('da').replace('br18-kontrol', 'BR18')).join(', ') %></small></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill <%= item.number ? 'pb-c0' : 'fox-column-muted' %>" width="<%= percent(item.count, propertyMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">AFVIGELSER</p><h2>Registrerede afvigelser</h2></div><span class="count-badge"><%= number(a.totals.deviations) %></span></div>
+            <% if (!a.totals.deviations) { %>
+              <div class="tilsyn-coverage ok rapport-ok"><span>✓</span><div><strong>Ingen afvigelser i <%= period || 'perioden' %></strong><p>Alle <%= number(a.totals.reports) %> rapporter i udtrækket er registreret uden afvigelser. Når et udtræk indeholder et afsnit med afvigelser, vises de her og under fanen Afvigelser.</p></div></div>
+            <% } else { %>
+              <ul class="tilsyn-agenda"><% deviations.slice(0, 6).forEach(item => { %><li><span class="tilsyn-agenda-date"><strong><%= Number(item.date.slice(8)) %></strong><%= date(item.date, { month: 'short' }).replace('.', '') %></span><span class="tilsyn-agenda-text"><strong><%= item.category %> · <%= item.propertyName || item.place %></strong><small><%= [item.area, item.object].filter(Boolean).join(' / ') %></small></span></li><% }) %></ul>
+              <a class="text-link" href="/rapporter?view=afvigelser">Se alle afvigelser →</a>
+            <% } %>
+            <div class="rapport-kinds">
+              <p class="eyebrow">FORDELING PÅ KONTROLTYPE</p>
+              <div class="rapport-kind-bar" role="img" aria-label="Fordeling på kontroltype"><svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><% let start = 0; a.kinds.forEach(kind => { const w = kind.count / a.totals.reports * 100; %><rect class="<%= kindClass[kind.label] || 'pb-c6' %>" x="<%= start.toFixed(2) %>" width="<%= w.toFixed(2) %>" height="8"><title><%= kind.label %>: <%= kind.count %></title></rect><% start += w; }) %></svg></div>
+              <ul class="rapport-kind-legend"><% a.kinds.forEach(kind => { %><li><a href="<%= filterHref({ type: kind.label }) %>"><span class="pb-swatch <%= kindClass[kind.label] || 'pb-c6' %>"></span><%= kind.label %> <strong><%= number(kind.count) %></strong></a></li><% }) %></ul>
+            </div>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">TEKNIKERE</p><h2>Rapporter pr. bruger</h2></div><span class="count-badge"><%= a.users.length %> brugere</span></div>
+            <% const userMax = Math.max(0, ...a.users.map(item => item.count)); %>
+            <ol class="pb-bars"><% a.users.forEach(item => { %><li><a href="<%= filterHref({ bruger: item.label }) %>" title="Vis rapporter fra <%= item.label %>"><span class="pb-bar-label"><%= item.label %><small><%= number(item.properties) %> ejendom<%= item.properties === 1 ? '' : 'me' %></small></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill pb-c1" width="<%= percent(item.count, userMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol>
+          </section>
+
+          <section class="panel pb-chart-panel">
+            <div class="panel-heading"><div><p class="eyebrow">LEJERE</p><h2>Lejers egenkontrol pr. lejer</h2></div><span class="count-badge">Top <%= a.tenants.length %></span></div>
+            <% const tenantMax = Math.max(0, ...a.tenants.map(item => item.count)); %>
+            <ol class="pb-bars"><% a.tenants.forEach(item => { const [tenant, place] = item.label.split(' · '); %><li><a href="<%= filterHref({ type: 'Lejers egenkontrol', q: tenant }) %>"><span class="pb-bar-label"><%= tenant %><small><%= place %></small></span><svg class="pb-bar-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="pb-bar-fill pb-c2" width="<%= percent(item.count, tenantMax) %>" height="10"></rect></svg><strong><%= number(item.count) %></strong></a></li><% }) %></ol>
+            <p class="eyebrow rapport-freq-title">KONTROLFREKVENS</p>
+            <ul class="rapport-kind-legend"><% a.frequencies.forEach(item => { %><li><a href="<%= filterHref({ frekvens: item.label }) %>"><%= item.label %> <strong><%= number(item.count) %></strong></a></li><% }) %></ul>
+          </section>
+        </div>
+        <% } %>
+      <% } else if (!error) { const rows = view === 'afvigelser' ? deviations : reports; %>
+        <% if (view === 'afvigelser' && !rows.length) { %>
+          <section class="panel records-panel"><div class="panel-heading"><div><p class="eyebrow">AFVIGELSER</p><h2>Afvigelser <span class="count-badge">0</span></h2></div><span class="read-only-label">Kun læsning</span></div>
+            <div class="workspace-empty"><span class="empty-icon">✓</span><strong>Ingen afvigelser registreret<%= period ? ' i ' + period : '' %></strong><span>Udtrækket indeholder <%= number(reports.length) %> rapporter og ingen afvigelser. Afvigelser fra kommende udtræk vises her med dato, skema, lokation og bruger.</span><a class="button button-light" href="/rapporter?view=liste">Se rapportlisten</a></div>
+          </section>
+        <% } else { %>
+        <section class="panel records-panel" data-filter-scope>
+          <div class="panel-heading"><div><p class="eyebrow"><%= view === 'afvigelser' ? 'AFVIGELSER' : 'RAPPORTLISTE' %></p><h2><%= view === 'afvigelser' ? 'Afvigelser' : 'Rapporter' %> <span class="count-badge" data-filter-count><%= number(rows.length) %></span></h2></div><span class="read-only-label">Kun læsning · nyeste først</span></div>
+          <div class="propbinder-toolbar fox-toolbar">
+            <label class="search-wrap"><span>⌕</span><input type="search" data-filter-search value="<%= listFilters.q %>" placeholder="Søg i skema, lejer, lokation, bruger…" aria-label="Søg i rapporter"></label>
+            <div class="propbinder-filters">
+              <select class="filter-select" data-filter-key="ejendom" aria-label="Ejendom"><option value="">Alle ejendomme</option><% options(rows, 'property').forEach(value => { %><option <%= listFilters.ejendom === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="kategori" aria-label="Skema"><option value="">Alle skemaer</option><% options(rows, 'category').forEach(value => { %><option <%= listFilters.kategori === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="type" aria-label="Kontroltype"><option value="">Alle kontroltyper</option><% options(rows, 'kind').forEach(value => { %><option <%= listFilters.type === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="frekvens" aria-label="Frekvens"><option value="">Alle frekvenser</option><% options(rows, 'frequency').forEach(value => { %><option <%= listFilters.frekvens === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="bruger" aria-label="Bruger"><option value="">Alle brugere</option><% options(rows, 'user').forEach(value => { %><option <%= listFilters.bruger === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <button type="button" class="filter-reset" data-filter-reset>Nulstil</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="records-table propbinder-table fox-table rapport-table">
+            <colgroup><col class="rapport-col-date"><col class="rapport-col-schema"><col class="rapport-col-property"><col class="rapport-col-location"><col class="rapport-col-user"></colgroup>
+            <thead><tr><th>DATO</th><th>SKEMA</th><th>EJENDOM</th><th>LOKATION</th><th>BRUGER</th></tr></thead>
+            <tbody><% rows.forEach(item => { %><tr data-filter-row data-f-ejendom="<%= item.property %>" data-f-kategori="<%= item.category %>" data-f-type="<%= item.kind %>" data-f-frekvens="<%= item.frequency %>" data-f-bruger="<%= item.user || '' %>">
+              <td><span class="fox-cell-main"><%= date(item.date) %></span><span class="task-property-meta"><%= item.time ? 'kl. ' + item.time : '' %></span></td>
+              <td><span class="record-status fox-pill rapport-kind-<%= slug(item.kind) %>"><%= item.kind %></span><% if (item.category !== item.kind) { %><strong class="task-property rapport-schema"><%= item.category %></strong><% } %><span class="task-property-meta"><%= [item.frequency !== 'Ikke angivet' ? item.frequency : null, item.paragraph ? 'BR18 § ' + item.paragraph : null].filter(Boolean).join(' · ') %></span></td>
+              <td><strong class="task-property"><%= item.propertyName || item.place || '—' %></strong><span class="task-property-meta"><%= item.propertyNumber ? item.propertyNumber + (item.place && item.place !== item.propertyName ? ' · ' + item.place : '') : 'Ikke koblet · stien er forkortet i udtrækket' %></span></td>
+              <td><span class="fox-cell-main"><%= item.area || '—' %></span><span class="task-property-meta"><%= item.object || '' %></span></td>
+              <td class="pb-person-cell"><span class="fox-cell-main"><%= item.user || '—' %></span></td>
+            </tr><% }) %></tbody>
+          </table></div>
+          <div class="empty-state compact" data-filter-empty hidden><strong>Ingen rapporter matcher filtrene</strong></div>
+        </section>
+        <% } %>
+      <% } %>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span><%= source ? source.files.map(f => f.name).join(', ') : 'Rapporter og afvigelser' %></span></footer>
+    </section>
+  </main>
+</body></html>

@@ -1,0 +1,20 @@
+<section class="panel settings-panel notify-panel" id="notifications">
+  <div class="panel-heading"><div><p class="eyebrow">DIN PROFIL</p><h2>Notifikationer</h2><p>Få en mail, når data ændrer sig i de arbejdsområder, du følger. Mails sendes til <strong><%= notifications.email %></strong>.</p></div></div>
+  <% if (!notifications.mailConfigured) { %><div class="notify-info"><strong>Mailafsendelse er ikke sat op endnu.</strong> Dine valg gemmes, og ændringer registreres allerede. Mails bliver sendt, når IT har sat afsenderpostkassen op.</div><% } %>
+  <form action="/settings/notifications" method="post" class="notify-form">
+    <% if (!notifications.preferences.length) { %><p class="notify-empty">Der er ingen arbejdsområder med data, du kan følge endnu.</p><% } %>
+    <ul class="notify-list">
+      <% notifications.preferences.forEach(area => { %>
+      <li class="notify-item">
+        <div><strong id="notify-label-<%= area.key %>"><%= area.label %></strong><span><%= area.description %></span></div>
+        <label class="notify-switch"><input type="checkbox" name="areas" value="<%= area.key %>" aria-labelledby="notify-label-<%= area.key %>" <%= area.enabled ? 'checked' : '' %>><span class="notify-slider" aria-hidden="true"></span><span class="notify-state" aria-hidden="true"><%= area.enabled ? 'Til' : 'Fra' %></span></label>
+      </li>
+      <% }) %>
+    </ul>
+    <div class="form-actions"><span>Ændringer tjekkes automatisk med jævne mellemrum. Du får én samlet mail pr. tjek.</span><button class="button button-primary" type="submit">Gem notifikationer <span>→</span></button></div>
+  </form>
+  <% if (isAdmin) { %><form action="/settings/notifications/run" method="post" class="notify-run"><button class="row-action" type="submit">Tjek for ændringer nu</button><span>Kun for administratorer: kører tjekket med det samme.</span></form><% } %>
+  <% if (notifications.recent.length) { %>
+  <div class="notify-recent"><p class="eyebrow">SENESTE NOTIFIKATIONER TIL DIG</p><ul><% notifications.recent.forEach(item => { %><li><span><%= item.subject.replace('Cibus-portalen: ', '') %></span><small><%= new Date(item.created_at + 'Z').toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %> · <%= item.sent_at ? 'Sendt' : (item.last_error ? 'Fejlede' : 'Afventer afsendelse') %></small></li><% }) %></ul></div>
+  <% } %>
+</section>

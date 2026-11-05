@@ -1,0 +1,39 @@
+<div class="profile-stack">
+  <section class="panel settings-panel" id="profile">
+    <div class="panel-heading"><div><p class="eyebrow">MIN PROFIL</p><h2>Personlige oplysninger</h2><p>Gælder kun din egen konto.</p></div><span class="company-mark"><%= profile.name.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase() %></span></div>
+    <form action="/settings/profile" method="post" class="settings-form">
+      <label for="profile-name">Navn</label>
+      <input id="profile-name" name="name" value="<%= profile.name %>" minlength="2" maxlength="80" autocomplete="name" required>
+      <label for="profile-email">E-mail (bruges til login)</label>
+      <% if (isAdmin) { %>
+      <input id="profile-email" name="email" type="email" value="<%= profile.email %>" maxlength="120" autocomplete="email" required aria-describedby="profile-email-note">
+      <p class="profile-note" id="profile-email-note">Som administrator kan du ændre din login-e-mail. Brug den nye adresse, næste gang du logger ind. Rolle: <strong><%= roleNames[profile.role] || 'Normal' %></strong> · oprettet <%= new Date(profile.created_at + 'Z').toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' }) %></p>
+      <% } else { %>
+      <input id="profile-email" value="<%= profile.email %>" readonly aria-describedby="profile-email-note">
+      <p class="profile-note" id="profile-email-note">Din e-mail ændres af en administrator under Indstillinger → Brugere. Rolle: <strong><%= roleNames[profile.role] || 'Normal' %></strong> · oprettet <%= new Date(profile.created_at + 'Z').toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' }) %></p>
+      <% } %>
+      <div class="form-actions"><span>Navnet vises i portalen og i notifikationsmails.</span><button class="button button-primary" type="submit"><%= isAdmin ? 'Gem ændringer' : 'Gem navn' %> <span>→</span></button></div>
+    </form>
+  </section>
+
+  <section class="panel settings-panel" id="password">
+    <div class="panel-heading"><div><p class="eyebrow">SIKKERHED</p><h2>Skift adgangskode</h2><p>Angiv din nuværende adgangskode og vælg en ny på mindst 12 tegn.</p></div></div>
+    <form action="/settings/password" method="post" class="settings-form">
+      <input type="text" name="username" value="<%= profile.email %>" autocomplete="username" hidden>
+      <label for="current-password">Nuværende adgangskode</label>
+      <input id="current-password" name="current_password" type="password" autocomplete="current-password" required maxlength="128">
+      <label for="new-password-own">Ny adgangskode</label>
+      <input id="new-password-own" name="new_password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" placeholder="Mindst 12 tegn">
+      <label for="confirm-password">Gentag ny adgangskode</label>
+      <input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+      <div class="form-actions"><span>Du forbliver logget ind efter ændringen.</span><button class="button button-primary" type="submit">Skift adgangskode <span>→</span></button></div>
+    </form>
+  </section>
+
+  <% if (isAdmin) { %>
+  <section class="panel settings-panel" id="company">
+    <div class="panel-heading"><div><p class="eyebrow">KUN ADMINISTRATORER</p><h2>Virksomhedsoplysninger</h2><p>Gælder hele arbejdsområdet, ikke kun din profil.</p></div><span class="company-mark">FN</span></div>
+    <form action="/settings" method="post" class="settings-form"><label for="company-name">Virksomhedens navn</label><input id="company-name" name="company_name" value="<%= settings.company_name %>" maxlength="80" required><label for="company-email">Kontakt-e-mail</label><input id="company-email" name="contact_email" type="email" value="<%= settings.contact_email %>" maxlength="120" required><label for="timezone">Tidszone</label><select id="timezone" name="timezone"><option value="Europe/Copenhagen" <%= settings.timezone === 'Europe/Copenhagen' ? 'selected' : '' %>>København (CET / CEST)</option><option value="Europe/Oslo" <%= settings.timezone === 'Europe/Oslo' ? 'selected' : '' %>>Oslo (CET / CEST)</option><option value="Europe/Stockholm" <%= settings.timezone === 'Europe/Stockholm' ? 'selected' : '' %>>Stockholm (CET / CEST)</option></select><div class="form-actions"><span>Ændringer gemmes for hele arbejdsområdet.</span><button class="button button-primary" type="submit">Gem ændringer <span>→</span></button></div></form>
+  </section>
+  <% } %>
+</div>
