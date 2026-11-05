@@ -1,3 +1,5 @@
+const { createTaskTextMatcher } = require('./task-text-matcher');
+
 const MOCK_TASKS = [
   {
     id: 'MOCK-187683',
@@ -99,27 +101,80 @@ function buildLinks(properties, timeRegistrations) {
     if (!propertiesByTaskNumber.has(key)) propertiesByTaskNumber.set(key, new Set());
     propertiesByTaskNumber.get(key).add(propertyNumber);
   }
-  return { propertiesById, propertiesByNumber, propertiesByTaskNumber: new Map([...propertiesByTaskNumber].map(([key, numbers]) => [key, [...numbers]])) };
+  // Names and addresses per financeUnit, so the text matcher can skip words shared with other customers' properties.
+  const namesByFinanceUnit = properties.map((property) => ({ financeUnit: normalizeNumber(property.financeUnit), texts: [property.name, property.address].filter(Boolean) }));
+  return { propertiesById, propertiesByNumber, namesByFinanceUnit, propertiesByTaskNumber: new Map([...propertiesByTaskNumber].map(([key, numbers]) => [key, [...numbers]])) };
 }
 
-// Keeps only tasks linked to a property on the allowed list and labels them with the list's name.
-function filterTasksByPropertyList(tasks, allowedProperties, links) {
-  const stats = { total: tasks.length, shown: 0, unlinked: 0, otherProperties: 0 };
+// Keeps only tasks linked to a property on the allowed list and labels them with the list's name. Tasks without
+// any property data are tried against `textMatcher` (address, name or lease code in the task text); a task that
+// is linked to a property outside the list is never moved onto the list by its text.
+function filterTasksByPropertyList(tasks, allowedProperties, links, textMatcher = null) {
+  const stats = { total: tasks.length, shown: 0, unlinked: 0, otherProperties: 0, linkedByData: 0, linkedByText: 0, ambiguous: 0 };
   const shown = [];
+  const label = (task, number, link) => {
+    const property = allowedProperties.get(number);
+    return { ...task, propertyNumber: number, property: property.name, propertyAddress: [property.address, [property.zipCode, property.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null, link };
+  };
   for (const task of tasks) {
     const candidates = propertyCandidates(task, links);
     const match = candidates.find((number) => allowedProperties.has(number));
     if (match) {
-      const property = allowedProperties.get(match);
-      shown.push({ ...task, propertyNumber: match, property: property.name, propertyAddress: [property.address, [property.zipCode, property.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null });
+      const viaTime = task.number != null && links.propertiesByTaskNumber.has(String(task.number)) && !task.propertyNumber && !task.propertyId;
+      shown.push(label(task, match, { via: viaTime ? 'tidsregistrering' : 'ejendomsfelt', evidence: null }));
+      stats.linkedByData += 1;
     } else if (candidates.length) {
       stats.otherProperties += 1;
     } else {
-      stats.unlinked += 1;
+      const text = textMatcher ? textMatcher.match(task) : null;
+      if (text && text.number && allowedProperties.has(text.number)) {
+        shown.push(label(task, text.number, { via: text.via, evidence: text.evidence }));
+        stats.linkedByText += 1;
+      } else {
+        if (text && text.ambiguous) stats.ambiguous += 1;
+        stats.unlinked += 1;
+      }
     }
   }
   stats.shown = shown.length;
   return { tasks: shown, stats };
+}
+
+// Propbinder case statuses arrive as resource keys ("CaseStatus.Name.Open").
+const CASE_STATUS_LABELS = { open: 'Åben', closed: 'Lukket', canceled: 'Annulleret', cancelled: 'Annulleret', awaitinganswer: 'Afventer svar', offer: 'Tilbud', needplanning: 'Skal planlægges', planned: 'Planlagt', inprogress: 'I gang' };
+const CLOSED_CASE_STATUSES = new Set(['Lukket', 'Annulleret']);
+function caseStatusLabel(status) {
+  const key = String(status || '').split('.').pop();
+  return CASE_STATUS_LABELS[key.toLowerCase()] || key.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Ukendt';
+}
+
+// Cases (GetCases) carry Propbinder's property number; it is translated to financeUnit (EjendomNr) and kept
+// when that is on the allowed list.
+function filterCasesByPropertyList(cases, allowedProperties, links) {
+  const shown = [];
+  for (const item of cases) {
+    const record = links.propertiesByNumber.get(normalizeNumber(item.propertyNumber))
+      || (item.propertyId ? links.propertiesById.get(String(item.propertyId).toLowerCase()) : null);
+    const number = record && [record.financeUnit, record.externalId, record.number].find((candidate) => candidate && allowedProperties.has(candidate));
+    if (!number) continue;
+    const property = allowedProperties.get(number);
+    const status = caseStatusLabel(item.status);
+    shown.push({
+      id: String(item.id),
+      shortId: String(item.id).slice(0, 8).toUpperCase(),
+      createdAt: item.createdAt || null,
+      updatedAt: item.lastModified || null,
+      status,
+      open: !CLOSED_CASE_STATUSES.has(status),
+      responsible: item.responsible || null,
+      customerType: item.customerType ? String(item.customerType).split('.').pop().replace(/([a-z])([A-Z])/g, '$1 $2') : null,
+      propertyNumber: number,
+      property: property.name,
+      propertyAddress: [property.address, [property.zipCode, property.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
+      propbinderName: item.propertyName || null,
+    });
+  }
+  return shown.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
 function createPropbinderService({
@@ -130,6 +185,8 @@ function createPropbinderService({
   timeRegistrationLookbackDays = 1095,
   cacheTtlMs = 60 * 1000,
   linkCacheTtlMs = 15 * 60 * 1000,
+  // Also place tasks on a property from an address, name or lease code in their text (see task-text-matcher).
+  textMatching = false,
   now = Date.now,
 } = {}) {
   const normalizedMode = String(mode).toLowerCase();
@@ -158,9 +215,40 @@ function createPropbinderService({
       return { tasks, filter: null, warnings };
     }
     const list = propertyList.getProperties();
-    const links = await loadLinks(warnings);
-    const { tasks: shown, stats } = filterTasksByPropertyList(tasks, list.byNumber, links);
-    return { tasks: shown, filter: { ...stats, propertyCount: list.properties.length, listModifiedAt: list.modifiedAt }, warnings };
+    const [links, rawCases] = await Promise.all([
+      loadLinks(warnings),
+      backendClient.getCases ? backendClient.getCases().catch((error) => { warnings.push(`Sager kunne ikke hentes fra Propbinder: ${error.message}`); return []; }) : [],
+    ]);
+    let textMatcher = null;
+    if (textMatching) {
+      const allowed = new Set(list.byNumber.keys());
+      const foreignKeys = links.namesByFinanceUnit.filter((entry) => !entry.financeUnit || !allowed.has(entry.financeUnit)).flatMap((entry) => entry.texts);
+      textMatcher = createTaskTextMatcher(list.properties.map((property) => ({ number: property.number, name: property.name, addresses: property.textKeys || [property.address] })), { foreignKeys });
+    }
+    const { tasks: shown, stats } = filterTasksByPropertyList(tasks, list.byNumber, links, textMatcher);
+    const cases = filterCasesByPropertyList(rawCases, list.byNumber, links);
+    return { tasks: shown, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length }, warnings };
+  }
+
+  // Stale-while-revalidate: Propbinder's full task list is large and slow, so a stale list is served while a
+  // single refresh runs in the background. Only the very first load waits for Propbinder.
+  async function load() {
+    if (!backendClient) {
+      throw new Error('Propbinder live mode er ikke konfigureret. Angiv PROPBINDER_USERNAME og PROPBINDER_PASSWORD i .env, og genstart appen.');
+    }
+    if (cache && now() - cache.fetchedAt < cacheTtlMs) return cache;
+    if (!refreshing) {
+      refreshing = fetchLive()
+        .then((result) => { cache = { fetchedAt: now(), ...result }; lastError = null; })
+        .catch((error) => { lastError = { message: error.message, at: now() }; throw error; })
+        .finally(() => { refreshing = null; });
+    }
+    if (cache) {
+      refreshing.catch(() => {});
+      return cache;
+    }
+    await refreshing;
+    return cache;
   }
 
   return {
@@ -171,24 +259,12 @@ function createPropbinderService({
       if (normalizedMode === 'mock') {
         return MOCK_TASKS.map((task) => normalizeTask(task, statusLabels));
       }
-      if (!backendClient) {
-        throw new Error('Propbinder live mode er ikke konfigureret. Angiv PROPBINDER_USERNAME og PROPBINDER_PASSWORD i .env, og genstart appen.');
-      }
-      if (cache && now() - cache.fetchedAt < cacheTtlMs) return cache.tasks;
-      // Stale-while-revalidate: Propbinder's full task list is large and slow, so a stale list is served while a
-      // single refresh runs in the background. Only the very first load waits for Propbinder.
-      if (!refreshing) {
-        refreshing = fetchLive()
-          .then((result) => { cache = { fetchedAt: now(), ...result }; lastError = null; })
-          .catch((error) => { lastError = { message: error.message, at: now() }; throw error; })
-          .finally(() => { refreshing = null; });
-      }
-      if (cache) {
-        refreshing.catch(() => {});
-        return cache.tasks;
-      }
-      await refreshing;
-      return cache.tasks;
+      return (await load()).tasks;
+    },
+    // Propbinder cases on the listed properties (fetched together with the tasks).
+    async getCases() {
+      if (normalizedMode === 'mock') return [];
+      return (await load()).cases || [];
     },
     getConfiguration() {
       return {
@@ -206,4 +282,4 @@ function createPropbinderService({
   };
 }
 
-module.exports = { createPropbinderService, normalizeTask, parseStatusLabels, filterTasksByPropertyList, buildLinks };
+module.exports = { createPropbinderService, normalizeTask, parseStatusLabels, filterTasksByPropertyList, filterCasesByPropertyList, caseStatusLabel, buildLinks };

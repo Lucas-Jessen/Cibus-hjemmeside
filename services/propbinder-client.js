@@ -105,6 +105,9 @@ function createPropbinderClient({ baseUrl = DEFAULT_BASE_URL, username, password
     getTasks: () => getList('/DashboardData/GetTasks'),
     getProperties: () => getList('/Property/Properties'),
     getTimeRegistrations: (updatedAfter) => getList(`/TimeRegistration/${encodeURIComponent(new Date(updatedAfter).toISOString())}`),
+    // Task invoices carry the task number and the property number, which GetTasks lacks.
+    getTaskInvoices: () => getList('/TaskInvoice'),
+    getCases: () => getList('/DashboardData/GetCases'),
   };
 }
 

@@ -78,7 +78,11 @@ async function refreshCibusPropertyList() {
   cibusMatcher = createPropertyMatcher(result.properties);
   const properties = result.properties
     .filter((p) => p.number && p.status !== 'OPHØRT')
-    .map((p) => ({ number: String(p.number).trim().toUpperCase(), name: p.name || p.number, address: [p.address, p.address2].filter(Boolean).join(', ') || null, zipCode: p.zipCode, city: p.city, segment: p.segment, portfolio: p.portfolio }));
+    .map((p) => ({
+      number: String(p.number).trim().toUpperCase(), name: p.name || p.number, address: [p.address, p.address2].filter(Boolean).join(', ') || null, zipCode: p.zipCode, city: p.city, segment: p.segment, portfolio: p.portfolio,
+      // Each address on its own, for finding the property in a Propbinder task's text.
+      textKeys: [p.address, ...String(p.address2 || '').split(',')].map((text) => (text || '').trim()).filter(Boolean),
+    }));
   cibusPropertyList = { properties, byNumber: new Map(properties.map((p) => [p.number, p])), modifiedAt: result.modifiedAt };
   return cibusPropertyList;
 }
@@ -105,6 +109,9 @@ const propbinderService = createPropbinderService({
   statusLabels: parseStatusLabels(process.env.PROPBINDER_TASK_STATUSES),
   propertyList: propertyListAdapter,
   timeRegistrationLookbackDays: Number(process.env.PROPBINDER_TIMEREG_LOOKBACK_DAYS) || 1095,
+  // GetTasks has no property, and few Cibus tasks have time registrations; also link by address/name/lease code
+  // in the task text. Set PROPBINDER_TEXT_MATCHING=false to show only tasks linked by Propbinder's own data.
+  textMatching: String(process.env.PROPBINDER_TEXT_MATCHING || 'true').toLowerCase() !== 'false',
 });
 
 // Tilsyn (Excel) and Rapporter og afvigelser (PDF). Each path may be a folder: the newest Excel file and
@@ -229,7 +236,7 @@ function pageData(req, extra = {}) {
   return { user: req.session.user, settings, currentPath: req.path, roleNames, ...extra };
 }
 
-const propbinderSections = [['dashboard', 'Dashboard'], ['opgaveliste', 'Opgaveliste']];
+const propbinderSections = [['dashboard', 'Dashboard'], ['opgaveliste', 'Opgaveliste'], ['sager', 'Sager']];
 function propbinderNavigation(req) {
   const activeKey = propbinderSections.some(([key]) => key === req.query.section) ? req.query.section : propbinderSections[0][0];
   return {
@@ -283,17 +290,20 @@ app.get('/workspaces/properties', requireAuth, async (req, res) => {
 
 app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
   const sectionNav = propbinderNavigation(req);
-  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || '') };
+  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), aaben: String(req.query.aaben || '') };
   let tasks = [];
+  let cases = [];
   let error = null;
   try {
     if (!cibusPropertyList && propertyRegisterService.configured) await refreshCibusPropertyList();
     tasks = await propbinderService.getTasks();
+    cases = await propbinderService.getCases();
   } catch (fetchError) {
     error = fetchError.message;
   }
   res.render('propbinder-tasks', pageData(req, {
     tasks,
+    cases,
     sectionNav,
     listFilters,
     analytics: sectionNav.activeKey === 'dashboard' ? buildTaskAnalytics(tasks) : null,

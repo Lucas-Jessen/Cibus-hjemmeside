@@ -52,3 +52,12 @@
 .rapport-table .rapport-col-property{width:24%}
 .rapport-table .rapport-col-location{width:24%}
 .rapport-table .rapport-col-user{width:16%}
+
+/* Propbinder: how a task was linked to a property, and the Sager tab. */
+.pb-link-badge{display:inline-block;max-width:100%;margin-top:6px;padding:2px 7px;border-radius:4px;font-size:8.5px;font-weight:600;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+.pb-link-badge.data{background:#e0f1f0;color:#025e5d}
+.pb-link-badge.text{background:#fdf1d3;color:#8a6410}
+.pb-panel-note{margin:12px 0 0;color:#6d8483;font-size:10px;line-height:1.6}
+.records-panel>.pb-panel-note{margin:-4px 0 14px}
+.fox-pill.case-status-open{background:#fdf1d3;color:#8a6410}
+.fox-pill.case-status-closed{background:#ecf0f0;color:#5d7675}
