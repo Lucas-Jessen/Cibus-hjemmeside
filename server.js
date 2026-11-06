@@ -292,7 +292,7 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
   // Cases used to have their own tab; they are now part of the task list.
   if (req.query.section === 'sager') return res.redirect('/propbinder-tasks?section=opgaveliste&type=Sag');
   const sectionNav = propbinderNavigation(req);
-  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || '') };
+  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || ''), maaned: String(req.query.maaned || '') };
   let tasks = [];
   let error = null;
   try {
