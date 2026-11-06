@@ -236,7 +236,7 @@ function pageData(req, extra = {}) {
   return { user: req.session.user, settings, currentPath: req.path, roleNames, ...extra };
 }
 
-const propbinderSections = [['dashboard', 'Dashboard'], ['opgaveliste', 'Opgaveliste'], ['sager', 'Sager']];
+const propbinderSections = [['dashboard', 'Dashboard'], ['opgaveliste', 'Opgaveliste']];
 function propbinderNavigation(req) {
   const activeKey = propbinderSections.some(([key]) => key === req.query.section) ? req.query.section : propbinderSections[0][0];
   return {
@@ -289,21 +289,20 @@ app.get('/workspaces/properties', requireAuth, async (req, res) => {
 });
 
 app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
+  // Cases used to have their own tab; they are now part of the task list.
+  if (req.query.section === 'sager') return res.redirect('/propbinder-tasks?section=opgaveliste&type=Sag');
   const sectionNav = propbinderNavigation(req);
-  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), aaben: String(req.query.aaben || '') };
+  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || '') };
   let tasks = [];
-  let cases = [];
   let error = null;
   try {
     if (!cibusPropertyList && propertyRegisterService.configured) await refreshCibusPropertyList();
     tasks = await propbinderService.getTasks();
-    cases = await propbinderService.getCases();
   } catch (fetchError) {
     error = fetchError.message;
   }
   res.render('propbinder-tasks', pageData(req, {
     tasks,
-    cases,
     sectionNav,
     listFilters,
     analytics: sectionNav.activeKey === 'dashboard' ? buildTaskAnalytics(tasks) : null,
@@ -494,9 +493,18 @@ const server = app.listen(port, host, () => {
   const refreshMinutes = Number(process.env.PROPERTY_REGISTER_REFRESH_MINUTES) || 10;
   if (propertyRegisterService.configured) setInterval(() => refreshCibusPropertyList().catch((error) => console.error('Ejendomme: opdatering fejlede:', error.message)), refreshMinutes * 60 * 1000).unref();
   if (propbinderMode === 'live' && propbinderClient) {
+    const describe = (tasks) => `${tasks.filter((task) => task.kind !== 'Sag').length} opgaver og ${tasks.filter((task) => task.kind === 'Sag').length} sager`;
     propertiesReady.then(() => propbinderService.getTasks())
-      .then((tasks) => console.log(`Propbinder: ${tasks.length} opgaver på Cibus-ejendomme hentet på ${Math.round((Date.now() - started) / 1000)} s.`))
+      .then((tasks) => console.log(`Propbinder: ${describe(tasks)} på Cibus-ejendomme hentet på ${Math.round((Date.now() - started) / 1000)} s.`))
       .catch((error) => console.error('Propbinder: første hentning fejlede:', error.message));
+    // Keep tasks and cases current without a page visit, so new cases from Propbinder show up during the day
+    // (and reach the notifications).
+    const propbinderMinutes = Number(process.env.PROPBINDER_REFRESH_MINUTES) || 15;
+    setInterval(() => {
+      propbinderService.refresh()
+        .then((tasks) => console.log(`Propbinder: opdateret ${new Date().toLocaleTimeString('da-DK')} – ${describe(tasks)}.`))
+        .catch((error) => console.error('Propbinder: opdatering fejlede:', error.message));
+    }, propbinderMinutes * 60 * 1000).unref();
   }
   const notifyMinutes = Number(process.env.NOTIFY_INTERVAL_MINUTES || 15);
   if (notificationAreas.length && Number.isFinite(notifyMinutes) && notifyMinutes >= 1) {

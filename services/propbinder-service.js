@@ -143,6 +143,7 @@ function filterTasksByPropertyList(tasks, allowedProperties, links, textMatcher 
 // Propbinder case statuses arrive as resource keys ("CaseStatus.Name.Open").
 const CASE_STATUS_LABELS = { open: 'Åben', closed: 'Lukket', canceled: 'Annulleret', cancelled: 'Annulleret', awaitinganswer: 'Afventer svar', offer: 'Tilbud', needplanning: 'Skal planlægges', planned: 'Planlagt', inprogress: 'I gang' };
 const CLOSED_CASE_STATUSES = new Set(['Lukket', 'Annulleret']);
+const CUSTOMER_TYPES = { company: 'Virksomhed', tenant: 'Lejer', owner: 'Ejer', customer: 'Kunde', private: 'Privat' };
 function caseStatusLabel(status) {
   const key = String(status || '').split('.').pop();
   return CASE_STATUS_LABELS[key.toLowerCase()] || key.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Ukendt';
@@ -159,19 +160,30 @@ function filterCasesByPropertyList(cases, allowedProperties, links) {
     if (!number) continue;
     const property = allowedProperties.get(number);
     const status = caseStatusLabel(item.status);
+    const shortId = String(item.id).slice(0, 8).toUpperCase();
+    const customerType = item.customerType ? CUSTOMER_TYPES[String(item.customerType).split('.').pop().toLowerCase()] || String(item.customerType).split('.').pop() : null;
+    // Shaped like a task, so cases sit in the same list, dashboard and notifications as tasks.
     shown.push({
-      id: String(item.id),
-      shortId: String(item.id).slice(0, 8).toUpperCase(),
-      createdAt: item.createdAt || null,
-      updatedAt: item.lastModified || null,
+      id: `SAG-${shortId}`,
+      caseId: String(item.id),
+      number: null,
+      kind: 'Sag',
+      title: customerType ? `Sag fra ${customerType.toLocaleLowerCase('da')}` : 'Sag',
+      description: 'Henvendelse i Propbinder – titel og beskrivelse sendes ikke via API\'et.',
       status,
+      statusId: null,
       open: !CLOSED_CASE_STATUSES.has(status),
-      responsible: item.responsible || null,
-      customerType: item.customerType ? String(item.customerType).split('.').pop().replace(/([a-z])([A-Z])/g, '$1 $2') : null,
+      priority: null,
+      createdAt: item.createdAt || null,
+      startDate: null,
+      dueDate: null,
+      assignedTo: item.responsible || null,
+      updatedAt: item.lastModified || null,
+      customerType,
       propertyNumber: number,
       property: property.name,
       propertyAddress: [property.address, [property.zipCode, property.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
-      propbinderName: item.propertyName || null,
+      link: { via: 'sag', evidence: null },
     });
   }
   return shown.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -227,7 +239,20 @@ function createPropbinderService({
     }
     const { tasks: shown, stats } = filterTasksByPropertyList(tasks, list.byNumber, links, textMatcher);
     const cases = filterCasesByPropertyList(rawCases, list.byNumber, links);
-    return { tasks: shown, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length }, warnings };
+    // Cases are work on the property too: they are shown as tasks, newest first together with the tasks.
+    const combined = [...shown.map((task) => ({ kind: 'Opgave', ...task })), ...cases]
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    return { tasks: combined, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length }, warnings };
+  }
+
+  function startRefresh() {
+    if (!refreshing) {
+      refreshing = fetchLive()
+        .then((result) => { cache = { fetchedAt: now(), ...result }; lastError = null; })
+        .catch((error) => { lastError = { message: error.message, at: now() }; throw error; })
+        .finally(() => { refreshing = null; });
+    }
+    return refreshing;
   }
 
   // Stale-while-revalidate: Propbinder's full task list is large and slow, so a stale list is served while a
@@ -237,12 +262,7 @@ function createPropbinderService({
       throw new Error('Propbinder live mode er ikke konfigureret. Angiv PROPBINDER_USERNAME og PROPBINDER_PASSWORD i .env, og genstart appen.');
     }
     if (cache && now() - cache.fetchedAt < cacheTtlMs) return cache;
-    if (!refreshing) {
-      refreshing = fetchLive()
-        .then((result) => { cache = { fetchedAt: now(), ...result }; lastError = null; })
-        .catch((error) => { lastError = { message: error.message, at: now() }; throw error; })
-        .finally(() => { refreshing = null; });
-    }
+    startRefresh();
     if (cache) {
       refreshing.catch(() => {});
       return cache;
@@ -260,6 +280,13 @@ function createPropbinderService({
         return MOCK_TASKS.map((task) => normalizeTask(task, statusLabels));
       }
       return (await load()).tasks;
+    },
+    // Fetches tasks and cases now and waits for the result (used by the scheduled refresh).
+    async refresh() {
+      if (normalizedMode === 'mock') return MOCK_TASKS.map((task) => normalizeTask(task, statusLabels));
+      if (!backendClient) throw new Error('Propbinder live mode er ikke konfigureret.');
+      await startRefresh();
+      return cache.tasks;
     },
     // Propbinder cases on the listed properties (fetched together with the tasks).
     async getCases() {

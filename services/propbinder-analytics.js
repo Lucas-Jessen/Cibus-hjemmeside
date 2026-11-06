@@ -32,7 +32,8 @@ function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 }
 
   const titleGroups = new Map();
   for (const task of tasks) {
-    const key = titleKey(task.title);
+    // Cases have no title from the API (only "Sag fra …"), so they would always look like repeats.
+    const key = task.kind === 'Sag' ? null : titleKey(task.title);
     if (!key) continue;
     const group = titleGroups.get(key) || { title: task.title, count: 0, properties: new Set() };
     group.count += 1;

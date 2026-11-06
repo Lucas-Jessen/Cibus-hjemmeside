@@ -1,7 +1,27 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createTaskTextMatcher } = require('../services/task-text-matcher');
-const { buildLinks, filterTasksByPropertyList, filterCasesByPropertyList, caseStatusLabel } = require('../services/propbinder-service');
+const { createPropbinderService, buildLinks, filterTasksByPropertyList, filterCasesByPropertyList, caseStatusLabel } = require('../services/propbinder-service');
+
+test('cases are part of the task list and refresh() fetches new ones', async () => {
+  let caseList = [{ id: 'c1', propertyNumber: '37896', status: 'CaseStatus.Name.Open', createdAt: '2026-11-01T10:00:00', customerType: 'CustomerType.Company' }];
+  const client = {
+    getTasks: async () => [{ id: 't', number: 5, title: 'Lys i Rungsted Bytorv 1', createdAt: '2026-11-02T10:00:00' }],
+    getProperties: async () => [{ id: 'p', number: '37896', financeUnit: 'F4354', name: 'Rungsted Bytorv' }],
+    getTimeRegistrations: async () => [],
+    getCases: async () => caseList,
+  };
+  const property = { number: 'F4354', name: 'Rungsted Bytorv', address: 'Rungsted Bytorv 1-7', textKeys: ['Rungsted Bytorv 1-7'] };
+  const service = createPropbinderService({ mode: 'live', backendClient: client, textMatching: true, propertyList: { configured: true, getProperties: () => ({ properties: [property], byNumber: new Map([['F4354', property]]), modifiedAt: '2026-11-01' }) } });
+  const tasks = await service.getTasks();
+  assert.deepEqual(tasks.map((task) => [task.kind, task.propertyNumber]), [['Opgave', 'F4354'], ['Sag', 'F4354']]);
+  assert.equal(tasks[1].title, 'Sag fra virksomhed');
+  assert.equal(tasks[1].status, 'Åben');
+  caseList = [...caseList, { id: 'c2', propertyNumber: '37896', status: 'CaseStatus.Name.Closed', createdAt: '2026-11-03T09:00:00' }];
+  const refreshed = await service.refresh();
+  assert.equal(refreshed.filter((task) => task.kind === 'Sag').length, 2);
+  assert.equal(refreshed[0].status, 'Lukket');
+});
 
 const cibus = [
   { number: 'F4354', name: 'Rungsted Bytorv', addresses: ['Rungsted Bytorv 1-7'] },

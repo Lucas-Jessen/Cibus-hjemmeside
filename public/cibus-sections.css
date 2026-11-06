@@ -61,3 +61,4 @@
 .records-panel>.pb-panel-note{margin:-4px 0 14px}
 .fox-pill.case-status-open{background:#fdf1d3;color:#8a6410}
 .fox-pill.case-status-closed{background:#ecf0f0;color:#5d7675}
+.pb-kind-badge{display:inline-block;padding:1px 5px;border-radius:3px;background:#e6eef8;color:#3d6a9c;font-size:8px;font-weight:700;letter-spacing:.5px}
