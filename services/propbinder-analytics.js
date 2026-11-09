@@ -23,6 +23,56 @@ function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthStart = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1);
+const dayKey = (date) => `${monthKey(date)}-${String(date.getDate()).padStart(2, '0')}`;
+
+// "Oprettede opgaver" chart. One month (default: the current one) is shown per day; an interval from one month
+// to another is shown per month. `months` lists every month from the first task up to now for the pickers.
+function buildCreationChart(tasks, { month = null, from = null, to = null, now = new Date(), maxMonths = 36 } = {}) {
+  const created = tasks.map((task) => (task.createdAt ? new Date(task.createdAt) : null)).filter((date) => date && !Number.isNaN(date.getTime()));
+  const current = monthKey(now);
+  const first = created.length ? monthKey(new Date(Math.min(...created))) : current;
+  const months = [];
+  for (let date = monthStart(first < current ? first : current); monthKey(date) <= current; date = new Date(date.getFullYear(), date.getMonth() + 1, 1)) months.push(monthKey(date));
+  const label = (key) => monthStart(key).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' });
+
+  if (MONTH_PATTERN.test(from || '') && MONTH_PATTERN.test(to || '')) {
+    let [start, end] = from <= to ? [from, to] : [to, from];
+    const span = [];
+    for (let date = monthStart(start); monthKey(date) <= end; date = new Date(date.getFullYear(), date.getMonth() + 1, 1)) span.push(monthKey(date));
+    // Keep the chart readable: at most maxMonths columns, counted back from the end of the interval.
+    const keys = span.slice(-maxMonths);
+    start = keys[0];
+    const counts = new Map(keys.map((key) => [key, 0]));
+    for (const date of created) { const key = monthKey(date); if (counts.has(key)) counts.set(key, counts.get(key) + 1); }
+    const columns = keys.map((key, index) => ({
+      key, filter: { maaned: key }, count: counts.get(key),
+      label: monthStart(key).toLocaleDateString('da-DK', { month: 'short' }).replace('.', ''),
+      sub: index === 0 || key.endsWith('-01') ? key.slice(0, 4) : '',
+      title: label(key),
+    }));
+    return { mode: 'interval', from: start, to: end, title: `${label(start)} – ${label(end)}`, columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, current, truncated: span.length > keys.length };
+  }
+
+  const key = MONTH_PATTERN.test(month || '') ? month : current;
+  const startDate = monthStart(key);
+  const days = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+  const counts = new Map();
+  for (const date of created) if (monthKey(date) === key) counts.set(date.getDate(), (counts.get(date.getDate()) || 0) + 1);
+  const columns = [];
+  for (let day = 1; day <= days; day++) {
+    const date = new Date(startDate.getFullYear(), startDate.getMonth(), day);
+    columns.push({
+      key: dayKey(date), filter: { dag: dayKey(date) }, count: counts.get(day) || 0,
+      label: String(day), sub: date.getDay() === 1 ? 'man' : '',
+      title: date.toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      future: date > now,
+    });
+  }
+  return { mode: 'month', month: key, title: label(key), columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, current };
+}
+
 function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 } = {}) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -75,4 +125,4 @@ function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 }
   };
 }
 
-module.exports = { buildTaskAnalytics, statusLabel, titleKey, isClosed };
+module.exports = { buildCreationChart, buildTaskAnalytics, statusLabel, titleKey, isClosed };

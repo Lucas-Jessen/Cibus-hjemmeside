@@ -198,3 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (taskSearch.value || (taskPropertyFilter && taskPropertyFilter.value)) filterTaskRows();
   }
 });
+
+// Chart filters (Propbinder "Udvikling"): a select marked data-auto-submit sends its form when it changes.
+document.addEventListener('change', (event) => {
+  const select = event.target.closest && event.target.closest('select[data-auto-submit]');
+  if (select && select.form) select.form.submit();
+});

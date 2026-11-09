@@ -23,6 +23,8 @@
   const monthOf = (task) => { if (!task.createdAt) return ''; const d = new Date(task.createdAt); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
   const monthName = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5)) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' });
   const monthOptions = [...new Set(tasks.map(monthOf).filter(Boolean))].sort().reverse();
+  const dayOf = (task) => monthOf(task) ? monthOf(task) + '-' + String(new Date(task.createdAt).getDate()).padStart(2, '0') : '';
+  const dayName = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10))).toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
 %>
 <body class="app-shell">
   <%- include('partials/sidebar', { user, settings, currentPath }) %>
@@ -54,18 +56,34 @@
             </div>
           </section>
 
-          <section class="panel pb-chart-panel">
-            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver pr. måned</h2></div><span class="count-badge">12 mdr.</span></div>
-            <% const monthMax = Math.max(1, ...a.perMonth.map(m => m.count)); const colWidth = 600 / a.perMonth.length; %>
-            <svg class="pb-columns" viewBox="0 0 600 230" role="img" aria-label="Oprettede opgaver pr. måned"><title>Oprettede opgaver pr. måned</title>
+          <section class="panel pb-chart-panel pb-development-panel">
+            <% const c = creationChart; const monthLabel = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' }); const monthsDesc = [...c.months].reverse(); %>
+            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver <%= c.mode === 'interval' ? 'pr. måned' : 'pr. dag' %></h2><p class="pb-chart-subtitle"><%= c.title %> · <%= number(c.total) %> oprettet<%= c.truncated ? ' (viser de seneste 36 måneder)' : '' %></p></div></div>
+            <div class="pb-chart-filters">
+              <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
+                <input type="hidden" name="section" value="dashboard">
+                <label><span>Måned</span><select name="udv_maaned" data-auto-submit aria-label="Vis én måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= c.mode === 'month' && c.month === key ? 'selected' : '' %>><%= monthLabel(key) %><%= key === c.current ? ' (indeværende)' : '' %></option><% }) %></select></label>
+                <noscript><button type="submit" class="filter-reset">Vis</button></noscript>
+              </form>
+              <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
+                <input type="hidden" name="section" value="dashboard">
+                <label><span>Fra</span><select name="udv_fra" aria-label="Interval fra måned"><% c.months.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.from : c.months[Math.max(0, c.months.length - 12)]) === key ? 'selected' : '' %>><%= monthLabel(key) %></option><% }) %></select></label>
+                <label><span>Til</span><select name="udv_til" aria-label="Interval til måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.to : c.current) === key ? 'selected' : '' %>><%= monthLabel(key) %></option><% }) %></select></label>
+                <button type="submit" class="filter-reset">Vis interval</button>
+              </form>
+              <% if (c.mode === 'interval' || c.month !== c.current) { %><a class="pb-chart-reset" href="/propbinder-tasks?section=dashboard">Indeværende måned</a><% } %>
+            </div>
+            <% const chartMax = Math.max(1, ...c.columns.map(col => col.count)); const colWidth = 600 / c.columns.length; const dense = c.columns.length > 20; %>
+            <svg class="pb-columns<%= dense ? ' pb-columns-dense' : '' %>" viewBox="0 0 600 230" role="img" aria-label="Oprettede opgaver – <%= c.title %>"><title>Oprettede opgaver – <%= c.title %></title>
               <line class="pb-axis" x1="0" y1="190" x2="600" y2="190"></line>
-              <% a.perMonth.forEach((month, index) => { const height = Math.round(month.count / monthMax * 160); const x = index * colWidth + colWidth * 0.2; %>
-                <% if (month.count) { %><a href="<%= listHref({ maaned: month.key }) %>"><rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.6).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= month.label %> <%= month.year %>: <%= number(month.count) %> – klik for at se dem i listen</title></rect></a><% } else { %><rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.6).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= month.label %> <%= month.year %>: 0</title></rect><% } %>
-                <% if (month.count) { %><text class="pb-column-value" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="<%= 184 - height %>"><%= number(month.count) %></text><% } %>
-                <text class="pb-column-label" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="208"><%= month.label %></text>
-                <% if (index === 0 || month.label === 'jan') { %><text class="pb-column-year" x="<%= (x + colWidth * 0.3).toFixed(1) %>" y="224"><%= month.year %></text><% } %>
+              <% c.columns.forEach((col) => { const height = col.count ? Math.max(3, Math.round(col.count / chartMax * 160)) : 0; const x = c.columns.indexOf(col) * colWidth + colWidth * 0.18; const center = (x + colWidth * 0.32).toFixed(1); %>
+                <% if (col.count) { %><a href="<%= listHref(col.filter) %>"><rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.64).toFixed(1) %>" height="<%= height %>" rx="2"><title><%= col.title %>: <%= number(col.count) %> – klik for at se dem i listen</title></rect></a>
+                <text class="pb-column-value" x="<%= center %>" y="<%= 184 - height %>"><%= number(col.count) %></text><% } %>
+                <text class="pb-column-label<%= col.future ? ' pb-column-future' : '' %>" x="<%= center %>" y="208"><%= col.label %></text>
+                <% if (col.sub) { %><text class="pb-column-year" x="<%= center %>" y="224"><%= col.sub %></text><% } %>
               <% }) %>
             </svg>
+            <% if (!c.total) { %><p class="pb-panel-note">Ingen opgaver eller sager oprettet i <%= c.mode === 'interval' ? 'intervallet' : monthLabel(c.month) %>.</p><% } %>
           </section>
 
           <section class="panel pb-chart-panel">
@@ -111,6 +129,7 @@
                 <% if (propertyOptions.length > 1) { %><select class="filter-select" data-filter-key="property" aria-label="Filtrér på ejendom"><option value="">Alle ejendomme</option><% propertyOptions.forEach(([name, propertyNumber]) => { %><option value="<%= name %>" <%= listFilters.property === name ? 'selected' : '' %>><%= name %><%= propertyNumber ? ' (' + propertyNumber + ')' : '' %></option><% }) %></select><% } %>
                 <select class="filter-select" data-filter-key="status" aria-label="Filtrér på status"><option value="">Alle statusser</option><% statuses.forEach(status => { %><option <%= listFilters.status === status ? 'selected' : '' %>><%= status %></option><% }) %></select>
                 <select class="filter-select" data-filter-key="type" aria-label="Type"><option value="">Opgaver og sager</option><option value="Opgave" <%= listFilters.type === 'Opgave' ? 'selected' : '' %>>Kun opgaver (<%= number(kindCounts.Opgave) %>)</option><option value="Sag" <%= listFilters.type === 'Sag' ? 'selected' : '' %>>Kun sager (<%= number(kindCounts.Sag) %>)</option></select>
+                <% if (/^\d{4}-\d{2}-\d{2}$/.test(listFilters.dag)) { %><select class="filter-select" data-filter-key="dag" aria-label="Oprettet dag"><option value="">Alle dage</option><option value="<%= listFilters.dag %>" selected>Oprettet <%= dayName(listFilters.dag) %></option></select><% } %>
                 <select class="filter-select" data-filter-key="maaned" aria-label="Oprettet i måned"><option value="">Alle måneder</option><% monthOptions.forEach(key => { %><option value="<%= key %>" <%= listFilters.maaned === key ? 'selected' : '' %>>Oprettet <%= monthName(key) %></option><% }) %></select>
                 <select class="filter-select" data-filter-key="via" aria-label="Kobling"><option value="">Alle koblinger</option><% viaCounts.forEach(([label]) => { %><option <%= listFilters.via === label ? 'selected' : '' %>><%= label %></option><% }) %></select>
                 <button type="button" class="filter-reset" data-filter-reset>Nulstil</button>
@@ -119,7 +138,7 @@
             <div class="table-wrap"><table class="records-table propbinder-table">
               <colgroup><col class="pb-col-task"><% if (showProperty) { %><col class="pb-col-property"><% } %><col class="pb-col-status"><% if (showPriority) { %><col class="pb-col-priority"><% } %><col class="pb-col-date"><col class="pb-col-person"><col class="pb-col-date"></colgroup>
               <thead><tr><th>OPGAVE</th><% if (showProperty) { %><th>EJENDOM</th><% } %><th>STATUS</th><% if (showPriority) { %><th>PRIORITET</th><% } %><th>FRIST</th><th>ANSVARLIG</th><th>OPDATERET</th></tr></thead>
-              <tbody><% tasks.forEach(task => { %><tr data-filter-row data-f-status="<%= task.status %>" data-f-property="<%= task.property || '' %>" data-f-via="<%= viaOf(task) %>" data-f-type="<%= task.kind === 'Sag' ? 'Sag' : 'Opgave' %>" data-f-maaned="<%= monthOf(task) %>"><td><div class="task-title-cell"><span class="task-id"><% if (task.kind === 'Sag') { %><span class="pb-kind-badge">SAG</span> <%= task.id.replace('SAG-', '') %><% } else { %><%= /^[0-9]+$/.test(task.id) ? '#' + task.id : task.id %><% } %></span><strong><%= task.title %></strong><p><%= task.description ? shorten(task.description) : 'Ingen beskrivelse er tilgængelig.' %></p></div></td><% if (showProperty) { %><td><% if (task.property) { %><strong class="task-property"><%= task.property %></strong><span class="task-property-meta"><%= [task.propertyNumber, task.propertyAddress].filter(Boolean).join(' · ') %></span><% if (task.link) { %><span class="pb-link-badge <%= isText(task) ? 'text' : 'data' %>" title="<%= task.link.evidence ? 'Fundet i opgaven: ' + task.link.evidence : 'Koblet via Propbinders data' %>"><%= viaOf(task) %><%= task.link.evidence ? ': ' + task.link.evidence : '' %></span><% } %><% } else { %>—<% } %></td><% } %><td><span class="record-status status-<%= task.status.toLowerCase().replace(/[^a-zæøå]/g, '') %>"><%= task.status %></span></td><% if (showPriority) { %><td><% if (task.priority) { %><span class="priority-pill priority-<%= String(task.priority).toLowerCase() %>"><%= task.priority %></span><% } else { %>—<% } %></td><% } %><td class="date-cell"><%= formatDate(task.dueDate) %></td><td class="pb-person-cell"><%= task.assignedTo || '—' %></td><td class="date-cell"><%= formatDate(task.updatedAt || task.createdAt) %></td></tr><% }) %></tbody>
+              <tbody><% tasks.forEach(task => { %><tr data-filter-row data-f-status="<%= task.status %>" data-f-property="<%= task.property || '' %>" data-f-via="<%= viaOf(task) %>" data-f-type="<%= task.kind === 'Sag' ? 'Sag' : 'Opgave' %>" data-f-maaned="<%= monthOf(task) %>" data-f-dag="<%= dayOf(task) %>"><td><div class="task-title-cell"><span class="task-id"><% if (task.kind === 'Sag') { %><span class="pb-kind-badge">SAG</span> <%= task.id.replace('SAG-', '') %><% } else { %><%= /^[0-9]+$/.test(task.id) ? '#' + task.id : task.id %><% } %></span><strong><%= task.title %></strong><p><%= task.description ? shorten(task.description) : 'Ingen beskrivelse er tilgængelig.' %></p></div></td><% if (showProperty) { %><td><% if (task.property) { %><strong class="task-property"><%= task.property %></strong><span class="task-property-meta"><%= [task.propertyNumber, task.propertyAddress].filter(Boolean).join(' · ') %></span><% if (task.link) { %><span class="pb-link-badge <%= isText(task) ? 'text' : 'data' %>" title="<%= task.link.evidence ? 'Fundet i opgaven: ' + task.link.evidence : 'Koblet via Propbinders data' %>"><%= viaOf(task) %><%= task.link.evidence ? ': ' + task.link.evidence : '' %></span><% } %><% } else { %>—<% } %></td><% } %><td><span class="record-status status-<%= task.status.toLowerCase().replace(/[^a-zæøå]/g, '') %>"><%= task.status %></span></td><% if (showPriority) { %><td><% if (task.priority) { %><span class="priority-pill priority-<%= String(task.priority).toLowerCase() %>"><%= task.priority %></span><% } else { %>—<% } %></td><% } %><td class="date-cell"><%= formatDate(task.dueDate) %></td><td class="pb-person-cell"><%= task.assignedTo || '—' %></td><td class="date-cell"><%= formatDate(task.updatedAt || task.createdAt) %></td></tr><% }) %></tbody>
             </table></div>
             <div class="empty-state compact" data-filter-empty hidden><strong>Ingen opgaver matcher filtrene</strong></div>
           <% } else { %><div class="empty-state workspace-empty"><span class="empty-icon">☷</span><strong>Der er ingen opgaver at vise</strong><span><%= isLive ? (error ? 'Se fejlen ovenfor.' : 'Propbinder returnerede ingen opgaver.') : 'Testdata er ikke konfigureret.' %></span></div><% } %>

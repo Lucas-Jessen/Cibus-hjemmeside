@@ -13,7 +13,7 @@ const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const { createPropbinderService, parseStatusLabels } = require('./services/propbinder-service');
 const { createPropbinderClient } = require('./services/propbinder-client');
-const { buildTaskAnalytics } = require('./services/propbinder-analytics');
+const { buildTaskAnalytics, buildCreationChart } = require('./services/propbinder-analytics');
 const { createPropertyRegisterService, createSharePointPropertyRegister, FIELDS: PROPERTY_REGISTER_FIELDS } = require('./services/property-register-service');
 const { createSharePointListClient } = require('./services/sharepoint-list-client');
 const { createNotificationService } = require('./services/notification-service');
@@ -292,7 +292,7 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
   // Cases used to have their own tab; they are now part of the task list.
   if (req.query.section === 'sager') return res.redirect('/propbinder-tasks?section=opgaveliste&type=Sag');
   const sectionNav = propbinderNavigation(req);
-  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || ''), maaned: String(req.query.maaned || '') };
+  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || ''), maaned: String(req.query.maaned || ''), dag: String(req.query.dag || '') };
   let tasks = [];
   let error = null;
   try {
@@ -306,6 +306,8 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
     sectionNav,
     listFilters,
     analytics: sectionNav.activeKey === 'dashboard' ? buildTaskAnalytics(tasks) : null,
+    // Udvikling: one month per day (default the current month) or an interval of months.
+    creationChart: sectionNav.activeKey === 'dashboard' ? buildCreationChart(tasks, { month: String(req.query.udv_maaned || ''), from: String(req.query.udv_fra || ''), to: String(req.query.udv_til || '') }) : null,
     service: propbinderService.getConfiguration(),
     error,
   }));
