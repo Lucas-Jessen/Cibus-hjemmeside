@@ -2,10 +2,10 @@
   <a class="brand co-brand-lockup" href="/workspaces/properties" aria-label="Cibus x Forenede"><img class="brand-logo co-brand-focus" src="/cibus-logo-white.svg" alt="Cibus Real Estate"><span class="co-brand-x" aria-hidden="true">×</span><span class="co-brand-forenede"><span class="co-brand-globe" aria-hidden="true"></span><span class="co-brand-wordmark">Forenede<small>Service</small></span></span></a>
   <nav class="main-nav" aria-label="Hovedmenu">
     <div class="workspace-label">ARBEJDSOMRÅDER</div>
+    <a class="nav-link <%= currentPath === '/tilsyn' ? 'active' : '' %>" href="/tilsyn"><span class="nav-icon">◉</span> Brand tilsyn</a>
     <a class="nav-link <%= currentPath === '/workspaces/properties' ? 'active' : '' %>" href="/workspaces/properties"><span class="nav-icon">⌂</span> Ejendomme</a>
     <% if (user.role === 'admin') { %><a class="nav-link <%= currentPath === '/propbinder-tasks' ? 'active' : '' %>" href="/propbinder-tasks"><span class="nav-icon">◇</span> Propbinder-opgaver</a><% } %>
     <a class="nav-link <%= currentPath === '/rapporter' ? 'active' : '' %>" href="/rapporter"><span class="nav-icon">▤</span> Rapporter og afvigelser</a>
-    <a class="nav-link <%= currentPath === '/tilsyn' ? 'active' : '' %>" href="/tilsyn"><span class="nav-icon">◉</span> Tilsyn</a>
     <div class="workspace-label admin-label"><%= user.role === 'admin' ? 'ADMINISTRATION' : 'MIN PROFIL' %></div>
     <a class="nav-link <%= currentPath === '/settings' || currentPath === '/users' ? 'active' : '' %>" href="/settings"><span class="nav-icon">⚙</span> Indstillinger</a>
   </nav>
