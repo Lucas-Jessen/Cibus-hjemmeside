@@ -57,21 +57,20 @@
           </section>
 
           <section class="panel pb-chart-panel pb-development-panel">
-            <% const c = creationChart; const monthLabel = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' }); const monthsDesc = [...c.months].reverse(); %>
-            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver <%= c.mode === 'interval' ? 'pr. måned' : 'pr. dag' %></h2><p class="pb-chart-subtitle"><%= c.title %> · <%= number(c.total) %> oprettet<%= c.truncated ? ' (viser de seneste 36 måneder)' : '' %></p></div></div>
+            <% const c = creationChart; const monthLabel = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' }); const monthsDesc = [...c.months].reverse(); const shortMonth = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'short', year: 'numeric' }); %>
+            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver <%= c.mode === 'interval' ? 'pr. måned' : 'pr. dag' %></h2><p class="pb-chart-subtitle"><%= c.title %> · <%= number(c.total) %> oprettet<%= c.truncated ? ' (viser de seneste 36 måneder)' : '' %></p></div><% if (c.mode === 'interval' || c.month !== c.current) { %><a class="count-badge pb-chart-reset" href="/propbinder-tasks?section=dashboard" title="Tilbage til indeværende måned">Nulstil til nu</a><% } %></div>
             <div class="pb-chart-filters">
               <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
                 <input type="hidden" name="section" value="dashboard">
-                <label><span>Måned</span><select name="udv_maaned" data-auto-submit aria-label="Vis én måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= c.mode === 'month' && c.month === key ? 'selected' : '' %>><%= monthLabel(key) %><%= key === c.current ? ' (indeværende)' : '' %></option><% }) %></select></label>
+                <label><span class="pb-sr-only">Måned</span><select name="udv_maaned" data-auto-submit aria-label="Vis én måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= c.mode === 'month' && c.month === key ? 'selected' : '' %>><%= shortMonth(key) %><%= key === c.current ? ' •' : '' %></option><% }) %></select></label>
                 <noscript><button type="submit" class="filter-reset">Vis</button></noscript>
               </form>
               <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
                 <input type="hidden" name="section" value="dashboard">
-                <label><span>Fra</span><select name="udv_fra" aria-label="Interval fra måned"><% c.months.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.from : c.months[Math.max(0, c.months.length - 12)]) === key ? 'selected' : '' %>><%= monthLabel(key) %></option><% }) %></select></label>
-                <label><span>Til</span><select name="udv_til" aria-label="Interval til måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.to : c.current) === key ? 'selected' : '' %>><%= monthLabel(key) %></option><% }) %></select></label>
-                <button type="submit" class="filter-reset">Vis interval</button>
+                <label><span>Fra</span><select name="udv_fra" aria-label="Interval fra måned"><% c.months.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.from : c.months[Math.max(0, c.months.length - 12)]) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
+                <label><span>Til</span><select name="udv_til" aria-label="Interval til måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.to : c.current) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
+                <button type="submit" class="filter-reset">Vis</button>
               </form>
-              <% if (c.mode === 'interval' || c.month !== c.current) { %><a class="pb-chart-reset" href="/propbinder-tasks?section=dashboard">Indeværende måned</a><% } %>
             </div>
             <% const chartMax = Math.max(1, ...c.columns.map(col => col.count)); const colWidth = 600 / c.columns.length; const dense = c.columns.length > 20; %>
             <svg class="pb-columns<%= dense ? ' pb-columns-dense' : '' %>" viewBox="0 0 600 230" role="img" aria-label="Oprettede opgaver – <%= c.title %>"><title>Oprettede opgaver – <%= c.title %></title>
