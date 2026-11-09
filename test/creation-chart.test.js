@@ -28,6 +28,17 @@ test('a chosen month is shown per day; an invalid one falls back to the current 
   assert.equal(buildCreationChart(tasks, { now, month: 'drop table' }).month, '2026-11');
 });
 
+test('a year is the last 12 months or a calendar year, per month', () => {
+  const last12 = buildCreationChart(tasks, { now, year: 'seneste' });
+  assert.equal(last12.mode, 'year');
+  assert.deepEqual([last12.from, last12.to, last12.columns.length, last12.total], ['2025-12', '2026-11', 12, 6]);
+  const y2026 = buildCreationChart(tasks, { now, year: '2026' });
+  assert.deepEqual([y2026.from, y2026.to, y2026.columns.length, y2026.total, y2026.title], ['2026-01', '2026-11', 11, 5, 'Hele 2026']);
+  assert.equal(buildCreationChart(tasks, { now, year: '2025' }).total, 1);
+  assert.deepEqual(last12.years, ['2026', '2025']);
+  assert.equal(buildCreationChart(tasks, { now, year: '1999' }).mode, 'month');
+});
+
 test('an interval is shown per month, in either order, linking to the month filter', () => {
   const chart = buildCreationChart(tasks, { now, from: '2026-11', to: '2026-09' });
   assert.equal(chart.mode, 'interval');

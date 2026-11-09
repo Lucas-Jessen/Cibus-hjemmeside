@@ -306,8 +306,17 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
     sectionNav,
     listFilters,
     analytics: sectionNav.activeKey === 'dashboard' ? buildTaskAnalytics(tasks) : null,
-    // Udvikling: one month per day (default the current month) or an interval of months.
-    creationChart: sectionNav.activeKey === 'dashboard' ? buildCreationChart(tasks, { month: String(req.query.udv_maaned || ''), from: String(req.query.udv_fra || ''), to: String(req.query.udv_til || '') }) : null,
+    // Udvikling: one month per day (default the current month), a year, or an interval of months.
+    // The Periode picker sends udv_periode=aar:<seneste|YYYY> or maaned:<YYYY-MM>.
+    creationChart: sectionNav.activeKey === 'dashboard' ? (() => {
+      const [kind, value] = String(req.query.udv_periode || '').split(':');
+      return buildCreationChart(tasks, {
+        month: kind === 'maaned' ? value : String(req.query.udv_maaned || ''),
+        year: kind === 'aar' ? value : String(req.query.udv_aar || ''),
+        from: String(req.query.udv_fra || ''),
+        to: String(req.query.udv_til || ''),
+      });
+    })() : null,
     service: propbinderService.getConfiguration(),
     error,
   }));

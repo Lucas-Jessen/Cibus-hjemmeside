@@ -27,15 +27,27 @@ const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const monthStart = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1);
 const dayKey = (date) => `${monthKey(date)}-${String(date.getDate()).padStart(2, '0')}`;
 
-// "Oprettede opgaver" chart. One month (default: the current one) is shown per day; an interval from one month
-// to another is shown per month. `months` lists every month from the first task up to now for the pickers.
-function buildCreationChart(tasks, { month = null, from = null, to = null, now = new Date(), maxMonths = 36 } = {}) {
+const shiftMonth = (key, delta) => monthKey(new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1 + delta, 1));
+
+// "Oprettede opgaver" chart. One month (default: the current one) is shown per day; a year ('seneste' = the last
+// 12 months, or a calendar year 'YYYY') or an interval from one month to another is shown per month.
+// `months` and `years` list what the pickers offer, from the first task up to now.
+function buildCreationChart(tasks, { month = null, from = null, to = null, year = null, now = new Date(), maxMonths = 36 } = {}) {
   const created = tasks.map((task) => (task.createdAt ? new Date(task.createdAt) : null)).filter((date) => date && !Number.isNaN(date.getTime()));
   const current = monthKey(now);
   const first = created.length ? monthKey(new Date(Math.min(...created))) : current;
   const months = [];
   for (let date = monthStart(first < current ? first : current); monthKey(date) <= current; date = new Date(date.getFullYear(), date.getMonth() + 1, 1)) months.push(monthKey(date));
+  const years = [...new Set(months.map((key) => key.slice(0, 4)))].reverse();
   const label = (key) => monthStart(key).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' });
+
+  // A year is an interval: the last 12 months, or January–December of a calendar year (up to the current month).
+  let yearKey = null;
+  if (year === 'seneste') {
+    [from, to, yearKey] = [shiftMonth(current, -11), current, 'seneste'];
+  } else if (/^\d{4}$/.test(year || '') && years.includes(year)) {
+    [from, to, yearKey] = [`${year}-01`, `${year}-12` < current ? `${year}-12` : current, year];
+  }
 
   if (MONTH_PATTERN.test(from || '') && MONTH_PATTERN.test(to || '')) {
     let [start, end] = from <= to ? [from, to] : [to, from];
@@ -52,7 +64,8 @@ function buildCreationChart(tasks, { month = null, from = null, to = null, now =
       sub: index === 0 || key.endsWith('-01') ? key.slice(0, 4) : '',
       title: label(key),
     }));
-    return { mode: 'interval', from: start, to: end, title: `${label(start)} – ${label(end)}`, columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, current, truncated: span.length > keys.length };
+    const title = yearKey === 'seneste' ? `Seneste 12 måneder (${label(start)} – ${label(end)})` : yearKey ? `Hele ${yearKey}` : `${label(start)} – ${label(end)}`;
+    return { mode: yearKey ? 'year' : 'interval', year: yearKey, from: start, to: end, title, columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, years, current, truncated: span.length > keys.length };
   }
 
   const key = MONTH_PATTERN.test(month || '') ? month : current;
@@ -70,7 +83,7 @@ function buildCreationChart(tasks, { month = null, from = null, to = null, now =
       future: date > now,
     });
   }
-  return { mode: 'month', month: key, title: label(key), columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, current };
+  return { mode: 'month', month: key, title: label(key), columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, years, current };
 }
 
 function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 } = {}) {

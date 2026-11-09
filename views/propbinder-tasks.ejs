@@ -58,17 +58,27 @@
 
           <section class="panel pb-chart-panel pb-development-panel">
             <% const c = creationChart; const monthLabel = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' }); const monthsDesc = [...c.months].reverse(); const shortMonth = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('da-DK', { month: 'short', year: 'numeric' }); %>
-            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver <%= c.mode === 'interval' ? 'pr. måned' : 'pr. dag' %></h2><p class="pb-chart-subtitle"><%= c.title %> · <%= number(c.total) %> oprettet<%= c.truncated ? ' (viser de seneste 36 måneder)' : '' %></p></div><% if (c.mode === 'interval' || c.month !== c.current) { %><a class="count-badge pb-chart-reset" href="/propbinder-tasks?section=dashboard" title="Tilbage til indeværende måned">Nulstil til nu</a><% } %></div>
+            <div class="panel-heading"><div><p class="eyebrow">UDVIKLING</p><h2>Oprettede opgaver <%= c.mode === 'month' ? 'pr. dag' : 'pr. måned' %></h2><p class="pb-chart-subtitle"><%= c.title %> · <%= number(c.total) %> oprettet<%= c.truncated ? ' (viser de seneste 36 måneder)' : '' %></p></div><% if (c.mode !== 'month' || c.month !== c.current) { %><a class="count-badge pb-chart-reset" href="/propbinder-tasks?section=dashboard" title="Tilbage til indeværende måned">Nulstil til nu</a><% } %></div>
+            <% const periodValue = c.mode === 'year' ? 'aar:' + c.year : c.mode === 'month' ? 'maaned:' + c.month : ''; %>
             <div class="pb-chart-filters">
-              <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
+              <form method="get" action="/propbinder-tasks" class="pb-chart-filter pb-chart-filter-period">
                 <input type="hidden" name="section" value="dashboard">
-                <label><span class="pb-sr-only">Måned</span><select name="udv_maaned" data-auto-submit aria-label="Vis én måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= c.mode === 'month' && c.month === key ? 'selected' : '' %>><%= shortMonth(key) %><%= key === c.current ? ' •' : '' %></option><% }) %></select></label>
+                <label><span>Periode</span><select name="udv_periode" data-auto-submit aria-label="Vis et år eller en måned">
+                  <% if (c.mode === 'interval') { %><option value="" selected disabled>Eget interval</option><% } %>
+                  <optgroup label="År (pr. måned)">
+                    <option value="aar:seneste" <%= periodValue === 'aar:seneste' ? 'selected' : '' %>>Seneste 12 mdr.</option>
+                    <% c.years.forEach(y => { %><option value="aar:<%= y %>" <%= periodValue === 'aar:' + y ? 'selected' : '' %>>Hele <%= y %></option><% }) %>
+                  </optgroup>
+                  <optgroup label="Måned (pr. dag)">
+                    <% monthsDesc.forEach(key => { %><option value="maaned:<%= key %>" <%= periodValue === 'maaned:' + key ? 'selected' : '' %>><%= shortMonth(key) %><%= key === c.current ? ' •' : '' %></option><% }) %>
+                  </optgroup>
+                </select></label>
                 <noscript><button type="submit" class="filter-reset">Vis</button></noscript>
               </form>
-              <form method="get" action="/propbinder-tasks" class="pb-chart-filter">
+              <form method="get" action="/propbinder-tasks" class="pb-chart-filter pb-chart-filter-interval">
                 <input type="hidden" name="section" value="dashboard">
-                <label><span>Fra</span><select name="udv_fra" aria-label="Interval fra måned"><% c.months.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.from : c.months[Math.max(0, c.months.length - 12)]) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
-                <label><span>Til</span><select name="udv_til" aria-label="Interval til måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= (c.mode === 'interval' ? c.to : c.current) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
+                <label><span>Fra</span><select name="udv_fra" aria-label="Interval fra måned"><% c.months.forEach(key => { %><option value="<%= key %>" <%= (c.mode !== 'month' ? c.from : c.months[Math.max(0, c.months.length - 12)]) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
+                <label><span>Til</span><select name="udv_til" aria-label="Interval til måned"><% monthsDesc.forEach(key => { %><option value="<%= key %>" <%= (c.mode !== 'month' ? c.to : c.current) === key ? 'selected' : '' %>><%= shortMonth(key) %></option><% }) %></select></label>
                 <button type="submit" class="filter-reset">Vis</button>
               </form>
             </div>
