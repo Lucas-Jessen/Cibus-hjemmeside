@@ -79,3 +79,24 @@
 .pb-columns-dense .pb-column-label{font-size:8px}
 .pb-columns-dense .pb-column-value{font-size:8px}
 .pb-column-future{opacity:.35}
+
+/* Kontrakter: a folder per active property, expandable to its files. */
+.contract-table .contract-col-property{width:34%}
+.contract-table .contract-col-folders{width:56%}
+.contract-table .contract-col-count{width:10%}
+.contract-details summary{display:flex;flex-wrap:wrap;gap:6px;cursor:pointer;list-style:none}
+.contract-details summary::-webkit-details-marker{display:none}
+.contract-folder-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid #d3e3e2;border-radius:999px;background:#fff;color:#164342;font-size:10px}
+.contract-folder-chip b{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e0f1f0;color:#025e5d;font-size:9px}
+.contract-details[open] .contract-folder-chip span{display:inline-block;transform:rotate(90deg)}
+.contract-folder{margin-top:10px;padding:9px 11px;border:1px solid #e5eeee;border-radius:7px;background:#f8fbfb}
+.contract-folder strong{color:#164342;font-size:10px}
+.contract-folder ul{margin:6px 0 0;padding:0;list-style:none}
+.contract-folder li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid #edf3f3;font-size:10px}
+.contract-folder li:first-child{border-top:0}
+.contract-folder a{color:#025e5d;font-weight:600;word-break:break-word}
+.contract-folder li span{flex:none;color:#6d8483}
+.contract-count{display:inline-grid;place-items:center;min-width:30px;height:24px;padding:0 8px;border-radius:12px;font-size:11px;font-weight:700}
+.contract-count.own{background:#dff2e4;color:#2f7a45}
+.contract-count.shared{background:#e0f1f0;color:#025e5d}
+.contract-count.none{background:#ecf0f0;color:#5d7675}

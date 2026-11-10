@@ -1,0 +1,63 @@
+<%- include('partials/head', { title: 'Kontrakter' }) %>
+<%
+  const number = (value) => new Intl.NumberFormat('da-DK').format(value);
+  const size = (bytes) => bytes >= 1048576 ? (bytes / 1048576).toLocaleString('da-DK', { maximumFractionDigits: 1 }) + ' MB' : Math.max(1, Math.round(bytes / 1024)).toLocaleString('da-DK') + ' KB';
+  const sharedKeys = new Set(shared);
+  const isShared = (folder, file) => sharedKeys.has(folder + '/' + file);
+  const ownCount = (entry) => entry.folders.reduce((sum, f) => sum + f.files.filter((file) => !isShared(f.name, file.name)).length, 0);
+  const totalFiles = entries.reduce((sum, e) => sum + e.fileCount, 0);
+  const withOwn = entries.filter((e) => ownCount(e) > 0).length;
+  const empty = entries.filter((e) => e.fileCount === 0).length;
+  const fileHref = (entry, folder, file) => '/kontrakter/fil?ejendom=' + encodeURIComponent(entry.number) + '&mappe=' + encodeURIComponent(folder) + '&fil=' + encodeURIComponent(file);
+  const kind = (entry) => entry.fileCount === 0 ? 'ingen' : ownCount(entry) > 0 ? 'egen' : 'faelles';
+%>
+<body class="app-shell">
+  <%- include('partials/sidebar', { user, settings, currentPath }) %>
+  <main class="main-content">
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <strong>Kontrakter</strong></div><div class="topbar-date"><span class="status-dot"></span> <%= number(totalFiles) %> filer i <%= number(entries.length) %> ejendomsmapper</div></header>
+    <section class="page-content">
+      <div class="page-heading-row"><div><p class="eyebrow">KONTRAKTER · CIBUS REAL ESTATE</p><h1>Kontrakter</h1><p class="page-subtitle">Aftaler pr. aktiv Cibus-ejendom fra SharePoint-listen. Hver ejendom har sin egen mappe, der starter med "01 kontrakt"; nye aktive ejendomme får automatisk en mappe.</p></div><span class="mode-badge live"><span></span><%= number(entries.length) %> aktive ejendomme</span></div>
+      <% if (error) { %><div class="form-alert"><span>!</span><div><strong>Kontraktmapperne kunne ikke læses</strong><p><%= error %></p></div></div><% } else { %>
+        <div class="workspace-summary propbinder-summary">
+          <article class="stat-card"><div class="stat-top"><span>Aktive ejendomme</span><span class="stat-icon blue">⌂</span></div><div class="stat-value"><%= number(entries.length) %></div><div class="stat-foot">Med mappe og "01 kontrakt"</div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Filer i alt</span><span class="stat-icon blue">▤</span></div><div class="stat-value"><%= number(totalFiles) %></div><div class="stat-foot">På tværs af alle mapper</div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><a class="stat-card-link" href="/kontrakter?aftale=egen"><div class="stat-top"><span>Med egen aftale</span><span class="stat-icon green">✓</span></div><div class="stat-value"><%= number(withOwn) %></div><div class="stat-foot">Ejendomme med en aftale ud over de fælles</div><div class="stat-line green-line"></div></a></article>
+          <article class="stat-card"><a class="stat-card-link" href="/kontrakter?aftale=faelles"><div class="stat-top"><span>Kun fælles aftale</span><span class="stat-icon sand">○</span></div><div class="stat-value"><%= number(entries.length - withOwn - empty) %></div><div class="stat-foot"><%= empty ? number(empty) + ' uden filer' : 'Ingen tomme mapper' %></div><div class="stat-line sand-line"></div></a></article>
+        </div>
+        <% if (shared.length) { %><div class="propbinder-filter-note"><strong>Fælles for alle ejendomme:</strong> <%= shared.map((key) => key.split('/').slice(1).join('/')).join(', ') %> (ligger i hver ejendoms mappe).</div><% } %>
+        <section class="panel records-panel" data-filter-scope>
+          <div class="panel-heading"><div><p class="eyebrow">EJENDOMME</p><h2>Kontraktmapper <span class="count-badge" data-filter-count><%= number(entries.length) %></span></h2></div><span class="read-only-label">Filerne ligger i kildefiler/kontrakter</span></div>
+          <div class="prop-toolbar">
+            <label class="search-wrap prop-search"><span>⌕</span><input type="search" data-filter-search value="<%= query %>" placeholder="Søg i ejendom, nr., adresse eller filnavn…" aria-label="Søg i kontrakter" autocomplete="off"></label>
+            <div class="prop-filter-group" role="group" aria-label="Aftaler" data-filter-buttons="aftale"><span class="prop-filter-label">Aftaler</span>
+              <button type="button" data-value="" aria-pressed="<%= aftale ? 'false' : 'true' %>">Alle <small><%= number(entries.length) %></small></button>
+              <button type="button" data-value="egen" aria-pressed="<%= aftale === 'egen' ? 'true' : 'false' %>">Egen aftale <small><%= number(withOwn) %></small></button>
+              <button type="button" data-value="faelles" aria-pressed="<%= aftale === 'faelles' ? 'true' : 'false' %>">Kun fælles <small><%= number(entries.length - withOwn - empty) %></small></button>
+              <% if (empty) { %><button type="button" data-value="ingen" aria-pressed="<%= aftale === 'ingen' ? 'true' : 'false' %>">Uden filer <small><%= number(empty) %></small></button><% } %>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="records-table propbinder-table fox-table contract-table">
+            <colgroup><col class="contract-col-property"><col class="contract-col-folders"><col class="contract-col-count"></colgroup>
+            <thead><tr><th>EJENDOM</th><th>MAPPER OG FILER</th><th>FILER</th></tr></thead>
+            <tbody><% entries.forEach((entry) => { %><tr data-filter-row data-f-aftale="<%= kind(entry) %>" data-search="<%= [entry.number, entry.name, entry.address, entry.zipCode, entry.city, ...entry.folders.flatMap((f) => [f.name, ...f.files.map((file) => file.name)])].filter(Boolean).join(' ').toLocaleLowerCase('da') %>">
+              <td><strong class="task-property"><%= entry.name %></strong><span class="task-property-meta"><%= [entry.number, entry.address, [entry.zipCode, entry.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ') %></span></td>
+              <td>
+                <details class="contract-details">
+                  <summary><% entry.folders.forEach((folder) => { %><span class="contract-folder-chip"><span aria-hidden="true">▸</span> <%= folder.name %> <b><%= number(folder.files.length) %></b></span><% }) %><% if (!entry.folders.length) { %><span class="task-property-meta">Ingen mapper</span><% } %></summary>
+                  <% entry.folders.forEach((folder) => { %>
+                    <div class="contract-folder"><strong><%= folder.name %></strong>
+                      <% if (!folder.files.length) { %><p class="task-property-meta">Mappen er tom.</p><% } else { %><ul><% folder.files.forEach((file) => { %><li><a href="<%= fileHref(entry, folder.name, file.name) %>" target="_blank" rel="noopener"><%= file.name %></a><span><%= size(file.size) %><%= isShared(folder.name, file.name) ? ' · fælles' : '' %></span></li><% }) %></ul><% } %>
+                    </div>
+                  <% }) %>
+                </details>
+              </td>
+              <td><span class="contract-count <%= ownCount(entry) ? 'own' : entry.fileCount ? 'shared' : 'none' %>"><%= number(entry.fileCount) %></span></td>
+            </tr><% }) %></tbody>
+          </table></div>
+          <div class="empty-state compact" data-filter-empty hidden><strong>Ingen ejendomme matcher filtrene</strong></div>
+        </section>
+      <% } %>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span>Kontrakter · aktive ejendomme fra SharePoint</span></footer>
+    </section>
+  </main>
+</body></html>

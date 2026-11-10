@@ -2,3 +2,5 @@ node_modules/
 data/
 .env
 cookies.txt
+# Underskrevne kontrakter (priser, CVR) holdes ude af det offentlige repo, indtil andet er aftalt
+kildefiler/kontrakter/

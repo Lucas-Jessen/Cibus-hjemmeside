@@ -4,6 +4,7 @@
     <div class="workspace-label">ARBEJDSOMRÅDER</div>
     <a class="nav-link <%= currentPath === '/tilsyn' ? 'active' : '' %>" href="/tilsyn"><span class="nav-icon">◉</span> Brand tilsyn</a>
     <a class="nav-link <%= currentPath === '/workspaces/properties' ? 'active' : '' %>" href="/workspaces/properties"><span class="nav-icon">⌂</span> Ejendomme</a>
+    <a class="nav-link <%= currentPath === '/kontrakter' ? 'active' : '' %>" href="/kontrakter"><span class="nav-icon">▧</span> Kontrakter</a>
     <% if (user.role === 'admin') { %><a class="nav-link <%= currentPath === '/propbinder-tasks' ? 'active' : '' %>" href="/propbinder-tasks"><span class="nav-icon">◇</span> Propbinder-opgaver</a><% } %>
     <a class="nav-link <%= currentPath === '/rapporter' ? 'active' : '' %>" href="/rapporter"><span class="nav-icon">▤</span> Rapporter og afvigelser</a>
     <div class="workspace-label admin-label"><%= user.role === 'admin' ? 'ADMINISTRATION' : 'MIN PROFIL' %></div>

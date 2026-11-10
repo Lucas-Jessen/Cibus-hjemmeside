@@ -21,6 +21,10 @@ const { createGraphMailer } = require('./services/mailer');
 const { createPropertyMatcher } = require('./services/cibus-property-matcher');
 const { createInspectionService, buildInspectionAnalytics, AGE_BUCKETS } = require('./services/inspection-service');
 const { createReportService, buildReportAnalytics } = require('./services/report-service');
+const { createContractService } = require('./services/contract-service');
+
+// Kontrakter: a folder per active Cibus property (CONTRACTS_PATH, default kildefiler/kontrakter).
+const contractService = createContractService({ root: process.env.CONTRACTS_PATH ? path.resolve(process.env.CONTRACTS_PATH) : path.join(__dirname, 'kildefiler', 'kontrakter') });
 
 const CUSTOMER = process.env.PROPERTY_REGISTER_CUSTOMER || 'Cibus Real Estate';
 const app = express();
@@ -84,6 +88,13 @@ async function refreshCibusPropertyList() {
       textKeys: [p.address, ...String(p.address2 || '').split(',')].map((text) => (text || '').trim()).filter(Boolean),
     }));
   cibusPropertyList = { properties, byNumber: new Map(properties.map((p) => [p.number, p])), modifiedAt: result.modifiedAt };
+  // Kontrakter: every active property gets its folder ("<EjendomNr> <navn>/01 kontrakt") as soon as it appears.
+  try {
+    const created = contractService.ensureStructure(properties);
+    if (created.length) console.log(`Kontrakter: ${created.length} nye ejendomsmapper oprettet.`);
+  } catch (error) {
+    console.error('Kontrakter: mapper kunne ikke oprettes:', error.message);
+  }
   return cibusPropertyList;
 }
 const propertyListAdapter = {
@@ -351,6 +362,37 @@ app.get('/tilsyn', requireAuth, async (req, res) => {
     listFilters: queryFilters(req, ['alder', 'region', 'type', 'bemaerkning']),
     analytics: viewNav.activeKey === 'dashboard' && !error ? buildInspectionAnalytics(inspections) : null,
   }));
+});
+
+// Active properties for Kontrakter, sorted by name; loaded from SharePoint on first use.
+async function activeCibusProperties() {
+  if (!cibusPropertyList && propertyRegisterService.configured) await refreshCibusPropertyList();
+  return cibusPropertyList ? [...cibusPropertyList.properties].sort((a, b) => String(a.name).localeCompare(String(b.name), 'da')) : [];
+}
+
+app.get('/kontrakter', requireAuth, async (req, res) => {
+  let entries = [];
+  let error = null;
+  try {
+    entries = contractService.list(await activeCibusProperties());
+  } catch (loadError) {
+    error = loadError.message;
+  }
+  // A file found in every property's folders is a shared agreement; the rest are property-specific.
+  const shared = entries.length ? [...new Set(entries[0].folders.flatMap((f) => f.files.map((file) => `${f.name}/${file.name}`)))]
+    .filter((key) => entries.every((e) => e.folders.some((f) => f.files.some((file) => `${f.name}/${file.name}` === key)))) : [];
+  res.render('kontrakter', pageData(req, { entries, shared, error, query: String(req.query.q || ''), aftale: String(req.query.aftale || '') }));
+});
+
+app.get('/kontrakter/fil', requireAuth, async (req, res) => {
+  const property = (await activeCibusProperties()).find((p) => p.number === String(req.query.ejendom || '').toUpperCase());
+  const file = property ? contractService.resolveFile(property, String(req.query.mappe || ''), String(req.query.fil || '')) : null;
+  if (!file) return res.status(404).render('error', { title: 'Filen blev ikke fundet', message: 'Filen findes ikke længere i ejendommens mappe.' });
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Cache-Control', 'private, no-store');
+  // PDFs open in the browser; other files download.
+  if (/\.pdf$/i.test(file)) return res.type('application/pdf').sendFile(file, { headers: { 'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(path.basename(file))}` } });
+  res.download(file, path.basename(file));
 });
 
 app.get('/rapporter', requireAuth, async (req, res) => {
