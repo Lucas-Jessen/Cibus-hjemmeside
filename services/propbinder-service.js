@@ -193,6 +193,8 @@ function filterCasesByPropertyList(cases, allowedProperties, links) {
 // `beforeMs` before the case to `afterMs` after it (measured on live data 2026-11-11: 174 of 225 Cibus cases,
 // nearly all 1–60 s before the case; the same window shifted by an hour or a day hits 0–1 case by chance).
 // A case with several candidates, or a task already taken by another case, is left without a task.
+// Case and task stay two records with their own status, deadline and responsible: the case only borrows the
+// task's title and text (it has none of its own) and refers to the task; `pairs` maps case id -> task.
 function pairCasesWithTasks(cases, tasks, { beforeMs = 60 * 1000, afterMs = 10 * 1000 } = {}) {
   const time = (value) => new Date(value).getTime();
   const byResponsible = new Map();
@@ -212,22 +214,14 @@ function pairCasesWithTasks(cases, tasks, { beforeMs = 60 * 1000, afterMs = 10 *
   // A task claimed by two cases is ambiguous: neither gets it.
   const claims = new Map();
   for (const task of candidates) if (task) claims.set(task.id, (claims.get(task.id) || 0) + 1);
-  const pairedTaskIds = new Set();
+  const pairs = new Map();
   const paired = cases.map((item, index) => {
     const task = candidates[index];
     if (!task || claims.get(task.id) > 1) return item;
-    pairedTaskIds.add(task.id);
-    return {
-      ...item,
-      number: task.number,
-      title: task.title,
-      description: task.description,
-      dueDate: task.dueDate,
-      startDate: task.startDate,
-      pairedTask: { id: task.id, number: task.number, status: task.status },
-    };
+    pairs.set(item.id, task);
+    return { ...item, title: task.title, description: task.description, titleFromTask: true, relatedTask: { id: task.id, number: task.number } };
   });
-  return { cases: paired, pairedTaskIds };
+  return { cases: paired, pairs, pairedTaskIds: new Set([...pairs.values()].map((task) => task.id)) };
 }
 
 function createPropbinderService({
@@ -279,13 +273,24 @@ function createPropbinderService({
       textMatcher = createTaskTextMatcher(list.properties.map((property) => ({ number: property.number, name: property.name, addresses: property.textKeys || [property.address] })), { foreignKeys });
     }
     const { tasks: shown, stats } = filterTasksByPropertyList(tasks, list.byNumber, links, textMatcher);
-    // GetCases has no title or text. A case's task is created by the same person within a minute before it,
-    // so the case borrows that task's title, text, number and deadline, and the task is not listed twice.
-    const { cases, pairedTaskIds } = pairCasesWithTasks(filterCasesByPropertyList(rawCases, list.byNumber, links), tasks);
-    // Cases are work on the property too: they are shown as tasks, newest first together with the tasks.
-    const combined = [...shown.filter((task) => !pairedTaskIds.has(task.id)).map((task) => ({ kind: 'Opgave', ...task })), ...cases]
-      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-    return { tasks: combined, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length, casesWithTask: cases.filter((item) => item.pairedTask).length, pairedAlreadyShown: shown.filter((task) => pairedTaskIds.has(task.id)).length }, warnings };
+    // GetCases has no title or text. A case's task is created by the same person within a minute before it, so
+    // the case shows that task's title and text. Case and task stay separate rows, each with its own status.
+    const { cases, pairs } = pairCasesWithTasks(filterCasesByPropertyList(rawCases, list.byNumber, links), tasks);
+    // A paired task that Propbinder's own data could not place on any property gets the case's property. A task
+    // that is already shown keeps its own link, and one linked to another property is never moved.
+    const shownIds = new Set(shown.map((task) => task.id));
+    const caseOfTask = new Map([...pairs].map(([caseId, task]) => [task.id, caseId]));
+    const viaCase = [];
+    for (const item of cases) {
+      const task = pairs.get(item.id);
+      if (!task || shownIds.has(task.id) || propertyCandidates(task, links).length) continue;
+      const property = list.byNumber.get(item.propertyNumber);
+      viaCase.push({ ...task, propertyNumber: item.propertyNumber, property: property.name, propertyAddress: item.propertyAddress, link: { via: 'henvendelse', evidence: item.id.replace('SAG-', 'sag ') } });
+    }
+    const taskRows = [...shown, ...viaCase].map((task) => ({ kind: 'Opgave', ...task, relatedCase: caseOfTask.has(task.id) ? caseOfTask.get(task.id) : null }));
+    // Cases are work on the property too: they are shown as their own rows, newest first together with the tasks.
+    const combined = [...taskRows, ...cases].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    return { tasks: combined, cases, filter: { ...stats, shown: taskRows.length, linkedByCase: viaCase.length, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length, casesWithTask: pairs.size }, warnings };
   }
 
   function startRefresh() {
