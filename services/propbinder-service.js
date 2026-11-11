@@ -189,6 +189,47 @@ function filterCasesByPropertyList(cases, allowedProperties, links) {
   return shown.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
+// Pairs each case with the task its responsible person created for it: same responsible, created from
+// `beforeMs` before the case to `afterMs` after it (measured on live data 2026-11-11: 174 of 225 Cibus cases,
+// nearly all 1–60 s before the case; the same window shifted by an hour or a day hits 0–1 case by chance).
+// A case with several candidates, or a task already taken by another case, is left without a task.
+function pairCasesWithTasks(cases, tasks, { beforeMs = 60 * 1000, afterMs = 10 * 1000 } = {}) {
+  const time = (value) => new Date(value).getTime();
+  const byResponsible = new Map();
+  for (const task of tasks) {
+    if (!task.assignedTo || !task.createdAt) continue;
+    if (!byResponsible.has(task.assignedTo)) byResponsible.set(task.assignedTo, []);
+    byResponsible.get(task.assignedTo).push(task);
+  }
+  const candidates = cases.map((item) => {
+    const created = time(item.createdAt);
+    const found = (byResponsible.get(item.assignedTo) || []).filter((task) => {
+      const delta = time(task.createdAt) - created;
+      return delta >= -beforeMs && delta <= afterMs;
+    });
+    return found.length === 1 ? found[0] : null;
+  });
+  // A task claimed by two cases is ambiguous: neither gets it.
+  const claims = new Map();
+  for (const task of candidates) if (task) claims.set(task.id, (claims.get(task.id) || 0) + 1);
+  const pairedTaskIds = new Set();
+  const paired = cases.map((item, index) => {
+    const task = candidates[index];
+    if (!task || claims.get(task.id) > 1) return item;
+    pairedTaskIds.add(task.id);
+    return {
+      ...item,
+      number: task.number,
+      title: task.title,
+      description: task.description,
+      dueDate: task.dueDate,
+      startDate: task.startDate,
+      pairedTask: { id: task.id, number: task.number, status: task.status },
+    };
+  });
+  return { cases: paired, pairedTaskIds };
+}
+
 function createPropbinderService({
   mode = 'mock',
   backendClient = null,
@@ -238,11 +279,13 @@ function createPropbinderService({
       textMatcher = createTaskTextMatcher(list.properties.map((property) => ({ number: property.number, name: property.name, addresses: property.textKeys || [property.address] })), { foreignKeys });
     }
     const { tasks: shown, stats } = filterTasksByPropertyList(tasks, list.byNumber, links, textMatcher);
-    const cases = filterCasesByPropertyList(rawCases, list.byNumber, links);
+    // GetCases has no title or text. A case's task is created by the same person within a minute before it,
+    // so the case borrows that task's title, text, number and deadline, and the task is not listed twice.
+    const { cases, pairedTaskIds } = pairCasesWithTasks(filterCasesByPropertyList(rawCases, list.byNumber, links), tasks);
     // Cases are work on the property too: they are shown as tasks, newest first together with the tasks.
-    const combined = [...shown.map((task) => ({ kind: 'Opgave', ...task })), ...cases]
+    const combined = [...shown.filter((task) => !pairedTaskIds.has(task.id)).map((task) => ({ kind: 'Opgave', ...task })), ...cases]
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-    return { tasks: combined, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length }, warnings };
+    return { tasks: combined, cases, filter: { ...stats, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length, casesWithTask: cases.filter((item) => item.pairedTask).length, pairedAlreadyShown: shown.filter((task) => pairedTaskIds.has(task.id)).length }, warnings };
   }
 
   function startRefresh() {
@@ -309,4 +352,4 @@ function createPropbinderService({
   };
 }
 
-module.exports = { createPropbinderService, normalizeTask, parseStatusLabels, filterTasksByPropertyList, filterCasesByPropertyList, caseStatusLabel, buildLinks };
+module.exports = { createPropbinderService, normalizeTask, parseStatusLabels, filterTasksByPropertyList, filterCasesByPropertyList, pairCasesWithTasks, caseStatusLabel, buildLinks };

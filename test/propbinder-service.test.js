@@ -103,7 +103,7 @@ test('live mode only shows tasks linked to properties on the property list', asy
   ]);
   assert.equal(tasks[0].propertyAddress, 'Vej 1, 2100 København Ø');
   const { filter, warnings } = service.getConfiguration();
-  assert.deepEqual(filter, { total: 5, shown: 3, unlinked: 1, otherProperties: 1, linkedByData: 3, linkedByText: 0, ambiguous: 0, textMatching: false, propertyCount: 2, listModifiedAt: '2026-10-20T10:00:00.000Z', cases: 0, casesTotal: 0 });
+  assert.deepEqual(filter, { total: 5, shown: 3, unlinked: 1, otherProperties: 1, linkedByData: 3, linkedByText: 0, ambiguous: 0, textMatching: false, propertyCount: 2, listModifiedAt: '2026-10-20T10:00:00.000Z', cases: 0, casesTotal: 0, casesWithTask: 0, pairedAlreadyShown: 0 });
   assert.deepEqual(tasks.map((task) => task.link.via), ['ejendomsfelt', 'ejendomsfelt', 'tidsregistrering']);
   assert.deepEqual(warnings, []);
 });
