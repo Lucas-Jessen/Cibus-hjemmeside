@@ -1,4 +1,4 @@
-<%- include('partials/head', { title: 'Rapporter og afvigelser' }) %>
+<%- include('partials/head', { title: 'BR18-kontroller' }) %>
 <%
   const number = (value) => new Intl.NumberFormat('da-DK').format(value);
   const date = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) => iso ? new Date(iso + 'T00:00:00Z').toLocaleDateString('da-DK', { ...opts, timeZone: 'UTC' }) : '—';
@@ -14,9 +14,9 @@
 <body class="app-shell">
   <%- include('partials/sidebar', { user, settings, currentPath }) %>
   <main class="main-content">
-    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/rapporter">Rapporter og afvigelser</a> <span>/</span> <strong><%= viewNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? source.files.length + ' PDF-udtræk · opdateret ' + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Månedsudtræk' %></div></header>
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/rapporter">BR18-kontroller</a> <span>/</span> <strong><%= viewNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? source.files.length + ' PDF-udtræk · opdateret ' + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Månedsudtræk' %></div></header>
     <section class="page-content">
-      <div class="page-heading-row"><div><p class="eyebrow">RAPPORTER OG AFVIGELSER<%= period ? ' · ' + period.toUpperCase() : '' %></p><h1>Rapporter og afvigelser</h1><p class="page-subtitle">Udførte kontroller på Cibus' ejendomme fra det månedlige udtræk: lovpligtige BR18-kontroller (brandtekniske installationer), lejers egenkontrol og øvrige eftersyn, samt registrerede afvigelser. Data læses fra PDF-filen og kan ikke ændres her.</p></div><span class="mode-badge live"><span></span>PDF · <%= number(reports.length) %> rapporter</span></div>
+      <div class="page-heading-row"><div><p class="eyebrow">BR18-KONTROLLER<%= period ? ' · ' + period.toUpperCase() : '' %></p><h1>BR18-kontroller</h1><p class="page-subtitle">Udførte kontroller på Cibus' ejendomme fra det månedlige udtræk: lovpligtige BR18-kontroller (brandtekniske installationer), lejers egenkontrol og øvrige eftersyn, samt registrerede afvigelser. Data læses fra PDF-filen og kan ikke ændres her.</p></div><span class="mode-badge live"><span></span>PDF · <%= number(reports.length) %> rapporter</span></div>
       <%- include('partials/section-nav', { sectionNav: viewNav }) %>
       <% if (error) { %><div class="form-alert"><span>!</span><div><strong>Rapportudtrækket kunne ikke læses</strong><p><%= error %></p></div></div><% } %>
 
@@ -44,7 +44,7 @@
             <svg class="pb-columns" viewBox="0 0 600 230" role="img" aria-label="Rapporter pr. uge"><title>Rapporter pr. uge</title>
               <line class="pb-axis" x1="0" y1="190" x2="600" y2="190"></line>
               <% a.weeks.forEach((week, index) => { const height = Math.round(week.count / weekMax * 160); const x = index * colWidth + colWidth * 0.22; const center = (x + colWidth * 0.28).toFixed(1); const places = week.places; %>
-                <rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.56).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= week.label %>: <%= number(week.count) %> rapporter – <%= places.join(', ') %></title></rect>
+                <a href="<%= filterHref({ uge: week.label }) %>"><rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.56).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= week.label %>: <%= number(week.count) %> rapporter – <%= places.join(', ') %> – klik for at se dem i listen</title></rect></a>
                 <text class="pb-column-value" x="<%= center %>" y="<%= 184 - height %>"><%= number(week.count) %></text>
                 <text class="pb-column-label" x="<%= center %>" y="208"><%= week.label %></text>
                 <text class="pb-column-year" x="<%= center %>" y="224"><%= places.length %> ejendom<%= places.length === 1 ? '' : 'me' %></text>
@@ -68,7 +68,7 @@
             <% } %>
             <div class="rapport-kinds">
               <p class="eyebrow">FORDELING PÅ KONTROLTYPE</p>
-              <div class="rapport-kind-bar" role="img" aria-label="Fordeling på kontroltype"><svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><% let start = 0; a.kinds.forEach(kind => { const w = kind.count / a.totals.reports * 100; %><rect class="<%= kindClass[kind.label] || 'pb-c6' %>" x="<%= start.toFixed(2) %>" width="<%= w.toFixed(2) %>" height="8"><title><%= kind.label %>: <%= kind.count %></title></rect><% start += w; }) %></svg></div>
+              <div class="rapport-kind-bar" role="img" aria-label="Fordeling på kontroltype"><svg viewBox="0 0 100 8" preserveAspectRatio="none"><% let start = 0; a.kinds.forEach(kind => { const w = kind.count / a.totals.reports * 100; %><a href="<%= filterHref({ type: kind.label }) %>"><rect class="<%= kindClass[kind.label] || 'pb-c6' %>" x="<%= start.toFixed(2) %>" width="<%= w.toFixed(2) %>" height="8"><title><%= kind.label %>: <%= kind.count %></title></rect></a><% start += w; }) %></svg></div>
               <ul class="rapport-kind-legend"><% a.kinds.forEach(kind => { %><li><a href="<%= filterHref({ type: kind.label }) %>"><span class="pb-swatch <%= kindClass[kind.label] || 'pb-c6' %>"></span><%= kind.label %> <strong><%= number(kind.count) %></strong></a></li><% }) %></ul>
             </div>
           </section>
@@ -103,6 +103,7 @@
               <select class="filter-select" data-filter-key="kategori" aria-label="Skema"><option value="">Alle skemaer</option><% options(rows, 'category').forEach(value => { %><option <%= listFilters.kategori === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <select class="filter-select" data-filter-key="type" aria-label="Kontroltype"><option value="">Alle kontroltyper</option><% options(rows, 'kind').forEach(value => { %><option <%= listFilters.type === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <select class="filter-select" data-filter-key="frekvens" aria-label="Frekvens"><option value="">Alle frekvenser</option><% options(rows, 'frequency').forEach(value => { %><option <%= listFilters.frekvens === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="uge" aria-label="Uge"><option value="">Alle uger</option><% [...new Set(rows.map(item => item.week).filter(Boolean))].sort((x, y) => Number(x.slice(4)) - Number(y.slice(4))).forEach(value => { %><option <%= listFilters.uge === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <select class="filter-select" data-filter-key="bruger" aria-label="Bruger"><option value="">Alle brugere</option><% options(rows, 'user').forEach(value => { %><option <%= listFilters.bruger === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <button type="button" class="filter-reset" data-filter-reset>Nulstil</button>
             </div>
@@ -110,7 +111,7 @@
           <div class="table-wrap"><table class="records-table propbinder-table fox-table rapport-table">
             <colgroup><col class="rapport-col-date"><col class="rapport-col-schema"><col class="rapport-col-property"><col class="rapport-col-location"><col class="rapport-col-user"></colgroup>
             <thead><tr><th>DATO</th><th>SKEMA</th><th>EJENDOM</th><th>LOKATION</th><th>BRUGER</th></tr></thead>
-            <tbody><% rows.forEach(item => { %><tr data-filter-row data-f-ejendom="<%= item.property %>" data-f-kategori="<%= item.category %>" data-f-type="<%= item.kind %>" data-f-frekvens="<%= item.frequency %>" data-f-bruger="<%= item.user || '' %>">
+            <tbody><% rows.forEach(item => { %><tr data-filter-row data-f-ejendom="<%= item.property %>" data-f-kategori="<%= item.category %>" data-f-type="<%= item.kind %>" data-f-frekvens="<%= item.frequency %>" data-f-bruger="<%= item.user || '' %>" data-f-uge="<%= item.week || '' %>">
               <td><span class="fox-cell-main"><%= date(item.date) %></span><span class="task-property-meta"><%= item.time ? 'kl. ' + item.time : '' %></span></td>
               <td><span class="record-status fox-pill rapport-kind-<%= slug(item.kind) %>"><%= item.kind %></span><% if (item.category !== item.kind) { %><strong class="task-property rapport-schema"><%= item.category %></strong><% } %><span class="task-property-meta"><%= [item.frequency !== 'Ikke angivet' ? item.frequency : null, item.paragraph ? 'BR18 § ' + item.paragraph : null].filter(Boolean).join(' · ') %></span></td>
               <td><strong class="task-property"><%= item.propertyName || item.place || '—' %></strong><span class="task-property-meta"><%= item.propertyNumber ? item.propertyNumber + (item.place && item.place !== item.propertyName ? ' · ' + item.place : '') : 'Ikke koblet · stien er forkortet i udtrækket' %></span></td>
@@ -122,7 +123,7 @@
         </section>
         <% } %>
       <% } %>
-      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span><%= source ? source.files.map(f => f.name).join(', ') : 'Rapporter og afvigelser' %></span></footer>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span><%= source ? source.files.map(f => f.name).join(', ') : 'BR18-kontroller' %></span></footer>
     </section>
   </main>
 </body></html>

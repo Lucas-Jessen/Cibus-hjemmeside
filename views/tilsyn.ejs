@@ -21,10 +21,10 @@
 
       <% if (isDashboard && !error) { const a = analytics; const next = a.planned[0]; %>
         <div class="workspace-summary propbinder-summary">
-          <article class="stat-card"><div class="stat-top"><span>Ejendomme i tilsyn</span><span class="stat-icon blue">⌂</span></div><div class="stat-value"><%= number(a.totals.inspections) %></div><div class="stat-foot"><%= number(a.totals.linked) %> koblet til Cibus-ejendomsnr. · median <%= a.totals.medianDays == null ? '—' : number(a.totals.medianDays) + ' dage' %> siden tilsyn</div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><a class="stat-card-link" href="<%= listHref %>"><div class="stat-top"><span>Ejendomme i tilsyn</span><span class="stat-icon blue">⌂</span></div><div class="stat-value"><%= number(a.totals.inspections) %></div><div class="stat-foot"><%= number(a.totals.linked) %> koblet til Cibus-ejendomsnr. · median <%= a.totals.medianDays == null ? '—' : number(a.totals.medianDays) + ' dage' %> siden tilsyn</div><div class="stat-line blue-line"></div></a></article>
           <article class="stat-card"><a class="stat-card-link" href="<%= filterHref({ alder: 'under3' }) %>"><div class="stat-top"><span>Tilset seneste 3 mdr.</span><span class="stat-icon green">✓</span></div><div class="stat-value"><%= number(a.totals.recent) %></div><div class="stat-foot"><%= a.totals.inspections ? Math.round(a.totals.recent / a.totals.inspections * 100) : 0 %>% af ejendommene</div><div class="stat-line green-line"></div></a></article>
           <article class="stat-card"><a class="stat-card-link" href="<%= filterHref({ alder: 'over12' }) %>"><div class="stat-top"><span>Over 12 mdr. siden</span><span class="stat-icon sand">!</span></div><div class="stat-value tilsyn-warn-value"><%= number(a.totals.over12) %></div><div class="stat-foot">Seneste tilsyn for over et år siden</div><div class="stat-line sand-line"></div></a></article>
-          <article class="stat-card"><div class="stat-top"><span>Planlagte tilsyn</span><span class="stat-icon blue">◷</span></div><div class="stat-value"><%= number(a.totals.planned) %></div><div class="stat-foot"><%= next ? 'Næste: ' + date(next.planned, { day: 'numeric', month: 'short' }) + ' · ' + next.name : 'Ingen planlagt i bemærkningerne' %></div><div class="stat-line blue-line"></div></article>
+          <article class="stat-card"><a class="stat-card-link" href="<%= filterHref({ planlagt: 'ja' }) %>"><div class="stat-top"><span>Planlagte tilsyn</span><span class="stat-icon blue">◷</span></div><div class="stat-value"><%= number(a.totals.planned) %></div><div class="stat-foot"><%= next ? 'Næste: ' + date(next.planned, { day: 'numeric', month: 'short' }) + ' · ' + next.name : 'Ingen planlagt i bemærkningerne' %></div><div class="stat-line blue-line"></div></a></article>
         </div>
         <div class="pb-dashboard-grid">
           <section class="panel pb-chart-panel">
@@ -42,7 +42,7 @@
             <svg class="pb-columns" viewBox="0 0 600 230" role="img" aria-label="Seneste tilsyn pr. måned"><title>Seneste tilsyn pr. måned</title>
               <line class="pb-axis" x1="0" y1="190" x2="600" y2="190"></line>
               <% a.months.forEach((month, index) => { const height = Math.round(month.count / monthMax * 160); const x = index * colWidth + colWidth * 0.2; const center = (x + colWidth * 0.3).toFixed(1); %>
-                <rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.6).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= month.label %> <%= month.year %>: <%= number(month.count) %> ejendomme med seneste tilsyn</title></rect>
+                <% if (month.count) { %><a href="<%= filterHref({ maaned: month.key }) %>"><rect class="pb-column" x="<%= x.toFixed(1) %>" y="<%= 190 - height %>" width="<%= (colWidth * 0.6).toFixed(1) %>" height="<%= height %>" rx="3"><title><%= month.label %> <%= month.year %>: <%= number(month.count) %> ejendomme med seneste tilsyn – klik for at se dem i listen</title></rect></a><% } %>
                 <% if (month.count) { %><text class="pb-column-value" x="<%= center %>" y="<%= 184 - height %>"><%= number(month.count) %></text><% } %>
                 <text class="pb-column-label" x="<%= center %>" y="208"><%= month.label %></text>
                 <% if (index === 0 || month.label.startsWith('jan')) { %><text class="pb-column-year" x="<%= center %>" y="224"><%= month.year %></text><% } %>
@@ -59,7 +59,7 @@
           <section class="panel pb-chart-panel">
             <div class="panel-heading"><div><p class="eyebrow">PLANLÆGNING</p><h2>Planlagte tilsyn</h2></div><span class="count-badge"><%= number(a.planned.length) %></span></div>
             <% if (!a.planned.length) { %><p class="tilsyn-empty-note">Ingen bemærkninger med "Planlagt til" i arket.</p><% } else { %>
-            <ul class="tilsyn-agenda"><% a.planned.forEach(item => { %><li><span class="tilsyn-agenda-date"><strong><%= new Date(item.planned).getUTCDate() %></strong><%= date(item.planned, { month: 'short' }).replace('.', '') %></span><span class="tilsyn-agenda-text"><strong><%= item.name %></strong><small><%= item.propertyNumber || '' %><%= item.propertyNumber ? ' · ' : '' %>Seneste tilsyn <%= date(item.latest) %> (<%= ago(item.daysSince) %>)</small></span></li><% }) %></ul>
+            <ul class="tilsyn-agenda"><% a.planned.forEach(item => { %><li><a class="tilsyn-agenda-link" href="<%= filterHref({ q: item.name }) %>" title="Vis <%= item.name %> i listen"><span class="tilsyn-agenda-date"><strong><%= new Date(item.planned).getUTCDate() %></strong><%= date(item.planned, { month: 'short' }).replace('.', '') %></span><span class="tilsyn-agenda-text"><strong><%= item.name %></strong><small><%= item.propertyNumber || '' %><%= item.propertyNumber ? ' · ' : '' %>Seneste tilsyn <%= date(item.latest) %> (<%= ago(item.daysSince) %>)</small></span></a></li><% }) %></ul>
             <% } %>
           </section>
 
@@ -86,13 +86,15 @@
               <select class="filter-select" data-filter-key="region" aria-label="Region"><option value="">Alle regioner</option><% options('region').forEach(value => { %><option <%= listFilters.region === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <select class="filter-select" data-filter-key="type" aria-label="Type"><option value="">Alle typer</option><% options('ownerType').forEach(value => { %><option <%= listFilters.type === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
               <select class="filter-select" data-filter-key="bemaerkning" aria-label="Bemærkning"><option value="">Alle bemærkninger</option><% options('remarkType').forEach(value => { %><option <%= listFilters.bemaerkning === value ? 'selected' : '' %>><%= value %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="maaned" aria-label="Seneste tilsyn i måned"><option value="">Alle måneder</option><% [...new Set(inspections.map(item => item.latest && item.latest.slice(0, 7)).filter(Boolean))].sort().reverse().forEach(key => { %><option value="<%= key %>" <%= listFilters.maaned === key ? 'selected' : '' %>>Seneste tilsyn <%= new Date(key + '-01T00:00:00Z').toLocaleDateString('da-DK', { month: 'long', year: 'numeric', timeZone: 'UTC' }) %></option><% }) %></select>
+              <select class="filter-select" data-filter-key="planlagt" aria-label="Planlagt tilsyn"><option value="">Planlagt og ikke planlagt</option><option value="ja" <%= listFilters.planlagt === 'ja' ? 'selected' : '' %>>Kun planlagte tilsyn</option></select>
               <button type="button" class="filter-reset" data-filter-reset>Nulstil</button>
             </div>
           </div>
           <div class="table-wrap"><table class="records-table propbinder-table fox-table tilsyn-table">
             <colgroup><col class="tilsyn-col-property"><col class="tilsyn-col-zip"><col class="tilsyn-col-date"><col class="tilsyn-col-date"><col class="tilsyn-col-status"><col class="tilsyn-col-remark"></colgroup>
             <thead><tr><th>EJENDOM</th><th>POSTNR.</th><th>SENESTE TILSYN</th><th>FORRIGE TILSYN</th><th>STATUS</th><th>BEMÆRKNING</th></tr></thead>
-            <tbody><% inspections.forEach(item => { %><tr data-filter-row data-f-alder="<%= item.bucket %>" data-f-region="<%= item.region %>" data-f-type="<%= item.ownerType %>" data-f-bemaerkning="<%= item.remarkType %>">
+            <tbody><% inspections.forEach(item => { %><tr data-filter-row data-f-alder="<%= item.bucket %>" data-f-region="<%= item.region %>" data-f-type="<%= item.ownerType %>" data-f-bemaerkning="<%= item.remarkType %>" data-f-maaned="<%= item.latest ? item.latest.slice(0, 7) : '' %>" data-f-planlagt="<%= item.planned ? 'ja' : '' %>">
               <td><strong class="task-property"><%= item.name %></strong><span class="task-property-meta"><%= item.propertyNumber ? item.propertyNumber + (item.propertyName && item.propertyName !== item.name ? ' · ' + item.propertyName : '') : 'Ikke koblet til ejendomsnr.' %><%= item.ownerType !== 'Ejendom' ? ' · ' + item.ownerType : '' %></span></td>
               <td><span class="fox-cell-main"><%= item.zip || '—' %></span><span class="task-property-meta"><%= item.region %></span></td>
               <td><span class="fox-cell-main"><%= date(item.latest) %></span><span class="task-property-meta"><%= ago(item.daysSince) %></span></td>

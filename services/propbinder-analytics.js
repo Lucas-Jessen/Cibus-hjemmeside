@@ -86,11 +86,17 @@ function buildCreationChart(tasks, { month = null, from = null, to = null, year 
   return { mode: 'month', month: key, title: label(key), columns, total: columns.reduce((sum, column) => sum + column.count, 0), months, years, current };
 }
 
-function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 } = {}) {
+// Deadline state of a task, shared by the dashboard cards and the list filter "Frist":
+// 'overskredet' (open, deadline before today), 'inden30' (open, deadline within 30 days) or ''.
+function dueState(task, now = new Date()) {
+  if (!task.dueDate || isClosed(task)) return '';
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const open = tasks.filter((task) => !isClosed(task));
+  const due = new Date(task.dueDate);
+  if (due < today) return 'overskredet';
+  return due <= new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000) ? 'inden30' : '';
+}
 
+function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 } = {}) {
   const statuses = top(countBy(tasks, statusLabel), 12).map(([label, count]) => ({ label, count }));
 
   const titleGroups = new Map();
@@ -127,8 +133,8 @@ function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 }
       properties: propertyNumbers.size,
       recurringGroups: recurring.length,
       recurringTasks: recurring.reduce((sum, group) => sum + group.count, 0),
-      overdue: open.filter((task) => task.dueDate && new Date(task.dueDate) < today).length,
-      dueSoon: open.filter((task) => task.dueDate && new Date(task.dueDate) >= today && new Date(task.dueDate) <= in30Days).length,
+      overdue: tasks.filter((task) => dueState(task, now) === 'overskredet').length,
+      dueSoon: tasks.filter((task) => dueState(task, now) === 'inden30').length,
     },
     statuses,
     recurringTitles,
@@ -138,4 +144,4 @@ function buildTaskAnalytics(tasks, { now = new Date(), months = 12, limit = 10 }
   };
 }
 
-module.exports = { buildCreationChart, buildTaskAnalytics, statusLabel, titleKey, isClosed };
+module.exports = { buildCreationChart, buildTaskAnalytics, dueState, statusLabel, titleKey, isClosed };

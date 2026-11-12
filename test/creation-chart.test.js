@@ -49,3 +49,13 @@ test('an interval is shown per month, in either order, linking to the month filt
   assert.equal(long.columns.length, 12);
   assert.equal(long.truncated, true);
 });
+
+test('dueState: open tasks with a deadline before today are overdue, within 30 days due soon; closed tasks never', () => {
+  const { dueState } = require('../services/propbinder-analytics');
+  const now = new Date(2026, 10, 12, 10, 0);
+  assert.equal(dueState({ status: 'Skal udføres', dueDate: '2026-11-11T12:00:00' }, now), 'overskredet');
+  assert.equal(dueState({ status: 'Skal udføres', dueDate: '2026-11-12T08:00:00' }, now), 'inden30');
+  assert.equal(dueState({ status: 'Skal udføres', dueDate: '2026-12-30T08:00:00' }, now), '');
+  assert.equal(dueState({ status: 'Afsluttet', dueDate: '2026-11-01T08:00:00' }, now), '');
+  assert.equal(dueState({ status: 'Skal udføres', dueDate: null }, now), '');
+});

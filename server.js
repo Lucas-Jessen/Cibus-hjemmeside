@@ -13,7 +13,7 @@ const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const { createPropbinderService, parseStatusLabels } = require('./services/propbinder-service');
 const { createPropbinderClient } = require('./services/propbinder-client');
-const { buildTaskAnalytics, buildCreationChart } = require('./services/propbinder-analytics');
+const { buildTaskAnalytics, buildCreationChart, dueState } = require('./services/propbinder-analytics');
 const { createPropertyRegisterService, createSharePointPropertyRegister, FIELDS: PROPERTY_REGISTER_FIELDS } = require('./services/property-register-service');
 const { createSharePointListClient } = require('./services/sharepoint-list-client');
 const { createNotificationService } = require('./services/notification-service');
@@ -150,7 +150,7 @@ const notificationAreas = [
     load: async () => ({ items: inspectionService.getInspections().inspections.map((item) => ({ key: item.name, label: `${item.name}${item.propertyNumber ? ` (${item.propertyNumber})` : ''}`, fields: { 'Seneste tilsyn': day(item.latest), 'Forrige tilsyn': day(item.previous), Bemærkning: item.remark } })) }),
   },
   {
-    key: 'rapporter', label: 'Rapporter og afvigelser', href: '/rapporter?view=liste', description: 'Nye rapporter og afvigelser fra de månedlige udtræk.',
+    key: 'rapporter', label: 'BR18-kontroller', href: '/rapporter?view=liste', description: 'Nye rapporter og afvigelser fra de månedlige udtræk.',
     load: async () => {
       const { reports, deviations } = await reportService.getReports();
       // The same report can appear twice (same minute and place); number the repeats so keys stay stable.
@@ -160,7 +160,7 @@ const notificationAreas = [
     },
   },
   propbinderMode === 'live' && {
-    key: 'propbinder', label: 'Propbinder-opgaver', href: '/propbinder-tasks?section=opgaveliste', adminOnly: true, description: 'Nye opgaver og ændret status, frist eller ansvarlig.',
+    key: 'propbinder', label: 'Opgaver', href: '/propbinder-tasks?section=opgaveliste', adminOnly: true, description: 'Nye opgaver og ændret status, frist eller ansvarlig.',
     load: async () => {
       const tasks = await propbinderService.getTasks();
       if (propbinderService.getConfiguration().warnings.length) return { items: [], complete: false };
@@ -257,7 +257,7 @@ const propbinderSections = [['dashboard', 'Dashboard'], ['opgaveliste', 'Opgavel
 function propbinderNavigation(req) {
   const activeKey = propbinderSections.some(([key]) => key === req.query.section) ? req.query.section : propbinderSections[0][0];
   return {
-    title: 'Propbinder-opgaver',
+    title: 'Opgaver',
     activeKey,
     tabs: propbinderSections.map(([key, label]) => ({ key, label, active: key === activeKey, href: `/propbinder-tasks?section=${key}` })),
     activeSection: propbinderSections.find(([key]) => key === activeKey)[1],
@@ -309,7 +309,7 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
   // Cases used to have their own tab; they are now part of the task list.
   if (req.query.section === 'sager') return res.redirect('/propbinder-tasks?section=opgaveliste&type=Sag');
   const sectionNav = propbinderNavigation(req);
-  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || ''), maaned: String(req.query.maaned || ''), dag: String(req.query.dag || '') };
+  const listFilters = { property: String(req.query.property || ''), q: String(req.query.q || ''), status: String(req.query.status || ''), via: String(req.query.via || ''), type: String(req.query.type || ''), maaned: String(req.query.maaned || ''), dag: String(req.query.dag || ''), frist: String(req.query.frist || '') };
   let tasks = [];
   let error = null;
   try {
@@ -326,6 +326,7 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
     tasks,
     sectionNav,
     listFilters,
+    dueState,
     analytics: sectionNav.activeKey === 'dashboard' ? buildTaskAnalytics(tasks) : null,
     // Udvikling: one month per day (default the current month), a year, or an interval of months.
     // The Periode picker sends udv_periode=aar:<seneste|YYYY> or maaned:<YYYY-MM>.
@@ -369,7 +370,7 @@ app.get('/tilsyn', requireAuth, async (req, res) => {
   const withoutInspection = cibusRegister.filter((property) => property.number && !inspected.has(property.number));
   res.render('tilsyn', pageData(req, {
     viewNav, view: viewNav.activeKey, inspections, source, error, buckets: AGE_BUCKETS, withoutInspection,
-    listFilters: queryFilters(req, ['alder', 'region', 'type', 'bemaerkning']),
+    listFilters: queryFilters(req, ['alder', 'region', 'type', 'bemaerkning', 'maaned', 'planlagt']),
     analytics: viewNav.activeKey === 'dashboard' && !error ? buildInspectionAnalytics(inspections) : null,
   }));
 });
@@ -406,7 +407,7 @@ app.get('/kontrakter/fil', requireAuth, async (req, res) => {
 });
 
 app.get('/rapporter', requireAuth, async (req, res) => {
-  const viewNav = viewNavigation('Rapporter og afvigelser', '/rapporter', [['dashboard', 'Dashboard'], ['liste', 'Rapportliste'], ['afvigelser', 'Afvigelser']], req.query.view);
+  const viewNav = viewNavigation('BR18-kontroller', '/rapporter', [['dashboard', 'Dashboard'], ['liste', 'Rapportliste'], ['afvigelser', 'Afvigelser']], req.query.view);
   let data = { reports: [], deviations: [], files: [] };
   let error = null;
   try {
@@ -417,7 +418,7 @@ app.get('/rapporter', requireAuth, async (req, res) => {
   }
   res.render('rapporter', pageData(req, {
     viewNav, view: viewNav.activeKey, reports: data.reports, deviations: data.deviations, source: data.files.length ? { files: data.files, modifiedAt: data.modifiedAt } : null, error,
-    listFilters: queryFilters(req, ['ejendom', 'kategori', 'type', 'bruger', 'frekvens']),
+    listFilters: queryFilters(req, ['ejendom', 'kategori', 'type', 'bruger', 'frekvens', 'uge']),
     analytics: viewNav.activeKey === 'dashboard' && !error ? buildReportAnalytics(data) : null,
   }));
 });
