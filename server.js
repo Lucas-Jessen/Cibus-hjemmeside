@@ -123,6 +123,8 @@ const propbinderService = createPropbinderService({
   // GetTasks has no property, and few Cibus tasks have time registrations; also link by address/name/lease code
   // in the task text. Set PROPBINDER_TEXT_MATCHING=false to show only tasks linked by Propbinder's own data.
   textMatching: String(process.env.PROPBINDER_TEXT_MATCHING || 'true').toLowerCase() !== 'false',
+  // Only tasks and cases created on or after this date are shown (YYYY-MM-DD); empty shows everything.
+  createdFrom: process.env.PROPBINDER_FROM_DATE || null,
 });
 
 // Tilsyn (Excel) and Rapporter og afvigelser (PDF). Each path may be a folder: the newest Excel file and

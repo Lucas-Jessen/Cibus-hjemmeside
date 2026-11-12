@@ -234,9 +234,13 @@ function createPropbinderService({
   linkCacheTtlMs = 15 * 60 * 1000,
   // Also place tasks on a property from an address, name or lease code in their text (see task-text-matcher).
   textMatching = false,
+  // Only tasks and cases created on or after this date ('YYYY-MM-DD', local time) are shown; null shows all.
+  createdFrom = null,
   now = Date.now,
 } = {}) {
   const normalizedMode = String(mode).toLowerCase();
+  const fromMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(createdFrom || '').trim());
+  const fromDate = fromMatch ? new Date(Number(fromMatch[1]), Number(fromMatch[2]) - 1, Number(fromMatch[3])) : null;
   let cache = null;
   let linkCache = null;
   let refreshing = null;
@@ -307,8 +311,25 @@ function createPropbinderService({
     }
     const taskRows = [...shown, ...viaCase].map((task) => ({ kind: 'Opgave', ...task, relatedCase: caseOfTask.has(task.id) ? caseOfTask.get(task.id) : null }));
     // Cases are work on the property too: they are shown as their own rows, newest first together with the tasks.
-    const combined = [...taskRows, ...cases].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-    return { tasks: combined, cases, filter: { ...stats, shown: taskRows.length, linkedByCase: viaCase.length, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt, cases: cases.length, casesTotal: rawCases.length, casesWithTask: pairs.size }, warnings };
+    // Pairing and property links above use all data; only the rows shown are limited to the start date.
+    const fromTime = fromDate ? fromDate.getTime() : null;
+    const inPeriod = (row) => fromTime == null || (row.createdAt && new Date(row.createdAt).getTime() >= fromTime);
+    const shownTasks = taskRows.filter(inPeriod);
+    const shownCases = cases.filter(inPeriod);
+    const combined = [...shownTasks, ...shownCases].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    return {
+      tasks: combined,
+      cases: shownCases,
+      filter: {
+        ...stats, shown: shownTasks.length, linkedByCase: viaCase.filter(inPeriod).length,
+        // How the shown tasks were placed on a property (counted within the period, so they match the list).
+        linkedByData: shownTasks.filter((task) => task.link && ['tidsregistrering', 'ejendomsfelt'].includes(task.link.via)).length,
+        linkedByText: shownTasks.filter((task) => task.link && /tekst/.test(task.link.via)).length, textMatching: Boolean(textMatcher), propertyCount: list.properties.length, listModifiedAt: list.modifiedAt,
+        cases: shownCases.length, casesTotal: rawCases.length, casesWithTask: shownCases.filter((item) => item.relatedTask).length,
+        createdFrom: fromDate ? createdFrom : null, beforeStart: taskRows.length + cases.length - combined.length,
+      },
+      warnings,
+    };
   }
 
   function startRefresh() {

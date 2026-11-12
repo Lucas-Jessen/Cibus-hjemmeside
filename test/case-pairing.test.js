@@ -63,6 +63,29 @@ test('when Propbinder does not answer, the last cases and links are kept instead
   assert.ok(service.getConfiguration().warnings.some((w) => /seneste hentning/.test(w)));
 });
 
+test('only tasks and cases created from the start date are shown; pairing still sees older tasks', async () => {
+  const property = { number: 'F4354', name: 'Rungsted Bytorv', address: 'Rungsted Bytorv 1-7', textKeys: ['Rungsted Bytorv 1-7'] };
+  const client = {
+    getTasks: async () => [
+      { id: 'a', number: 1, title: 'Gammel Rungsted Bytorv 1', responsible: 'Ole', createdAt: '2026-11-03T23:59:00' },
+      { id: 'b', number: 2, title: 'Ny Rungsted Bytorv 1', responsible: 'Ole', createdAt: '2026-11-04T00:00:00' },
+      { id: 'c', number: 3, title: 'Til sagen', responsible: 'Jan', createdAt: '2026-11-03T23:59:40' },
+    ],
+    getProperties: async () => [{ id: 'p', number: '37896', financeUnit: 'F4354', name: 'Rungsted Bytorv' }],
+    getTimeRegistrations: async () => [],
+    getCases: async () => [
+      { id: 'old-aaaa', propertyNumber: '37896', status: 'CaseStatus.Name.Open', createdAt: '2026-10-01T10:00:00', responsible: 'Jan' },
+      { id: 'new-aaaa', propertyNumber: '37896', status: 'CaseStatus.Name.Open', createdAt: '2026-11-04T00:00:05', responsible: 'Jan' },
+    ],
+  };
+  const service = createPropbinderService({ mode: 'live', backendClient: client, textMatching: true, createdFrom: '2026-11-04', propertyList: { configured: true, getProperties: () => ({ properties: [property], byNumber: new Map([['F4354', property]]), modifiedAt: '2026-11-01' }) } });
+  const rows = await service.getTasks();
+  assert.deepEqual(rows.map((r) => r.id).sort(), ['2', 'SAG-NEW-AAAA']);
+  assert.equal(rows.find((r) => r.kind === 'Sag').title, 'Til sagen');
+  const filter = service.getConfiguration().filter;
+  assert.deepEqual([filter.createdFrom, filter.beforeStart, filter.shown, filter.cases], ['2026-11-04', 3, 1, 1]);
+});
+
 test('a paired task linked to another property by time registration is not moved onto the case property', async () => {
   const service = serviceWith({
     tasks: [{ id: 't', number: 5, title: 'Andet arbejde', responsible: 'Jan', createdAt: '2026-11-05T07:28:00' }],
