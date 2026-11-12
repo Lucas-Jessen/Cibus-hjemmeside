@@ -12,6 +12,8 @@ Kræver Node.js 20+. `node_modules` er kopieret fra Fokus Nordic-projektet, ford
 2. Kør `npm.cmd start` og åbn http://127.0.0.1:3001. Kan køre samtidig med Fokus Nordic (port 3000).
 3. Startbrugeren oprettes fra `ADMIN_EMAIL`/`ADMIN_PASSWORD`, når databasen (`data/cibus.sqlite`) er tom.
 
+**Stabil drift (fx til fremvisning):** start med `powershell -NoProfile -ExecutionPolicy Bypass -File start-portal.ps1` i stedet for `npm start`. Scriptet genstarter portalen efter 3 sekunder, hvis den stopper (afprøvet 2026-11-12: oppe igen med alle data på ca. 10 s). Serveren logger uhåndterede promise-fejl i stedet for at stoppe; en uventet undtagelse logges og afslutter processen, så scriptet starter den igen. Svarer Propbinder ikke, beholdes de senest hentede sager og koblinger (med en advarsel på siden) – før kunne et udfald tømme listen for sager.
+
 Tests: `npm test`.
 
 ## Sider

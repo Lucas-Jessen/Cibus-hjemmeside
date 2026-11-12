@@ -249,10 +249,28 @@ function createPropbinderService({
       backendClient.getProperties().catch((error) => { warnings.push(`Ejendomme kunne ikke hentes fra Propbinder: ${error.message}`); return null; }),
       backendClient.getTimeRegistrations(since).catch((error) => { warnings.push(`Tidsregistreringer kunne ikke hentes fra Propbinder: ${error.message}`); return null; }),
     ]);
+    // Only cache complete link data, so a temporary failure is retried on the next request. If Propbinder fails
+    // and earlier link data exists, that is used instead of empty data (tasks would otherwise lose their property).
+    if (!(properties && timeRegistrations) && linkCache) {
+      warnings.push('Viser koblinger fra seneste fulde hentning.');
+      return linkCache.links;
+    }
     const links = buildLinks(properties || [], timeRegistrations || []);
-    // Only cache complete link data, so a temporary failure is retried on the next request.
     if (properties && timeRegistrations) linkCache = { fetchedAt: now(), links };
     return links;
+  }
+
+  // Cases from the last successful GetCases; used when Propbinder does not answer, so cases never vanish.
+  let lastCases = null;
+  async function loadCases(warnings) {
+    if (!backendClient.getCases) return [];
+    try {
+      lastCases = await backendClient.getCases();
+      return lastCases;
+    } catch (error) {
+      warnings.push(`Sager kunne ikke hentes fra Propbinder (${error.message})${lastCases ? '; viser sagerne fra seneste hentning.' : '.'}`);
+      return lastCases || [];
+    }
   }
 
   async function fetchLive() {
@@ -264,7 +282,7 @@ function createPropbinderService({
     const list = propertyList.getProperties();
     const [links, rawCases] = await Promise.all([
       loadLinks(warnings),
-      backendClient.getCases ? backendClient.getCases().catch((error) => { warnings.push(`Sager kunne ikke hentes fra Propbinder: ${error.message}`); return []; }) : [],
+      loadCases(warnings),
     ]);
     let textMatcher = null;
     if (textMatching) {

@@ -534,6 +534,14 @@ app.use((error, req, res, next) => {
   res.status(500).render('error', { title: 'Noget gik galt', message: 'Siden kunne ikke indlæses. Prøv igen.' });
 });
 
+// A rejected promise nobody handled is logged instead of stopping the portal. An uncaught exception leaves the
+// process in an unknown state, so it is logged and the process exits; start-portal.ps1 starts it again.
+process.on('unhandledRejection', (reason) => console.error('Uhåndteret fejl (portalen kører videre):', reason && reason.message ? reason.message : reason));
+process.on('uncaughtException', (error) => {
+  console.error('Uventet fejl, portalen genstarter:', error && error.stack ? error.stack : error);
+  process.exit(1);
+});
+
 const server = app.listen(port, host, () => {
   console.log(`Cibus-portalen er klar på http://${host}:${port}`);
   const started = Date.now();
