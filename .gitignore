@@ -4,3 +4,5 @@ data/
 cookies.txt
 # Underskrevne kontrakter (priser, CVR) holdes ude af det offentlige repo, indtil andet er aftalt
 kildefiler/kontrakter/
+# Opgaver meldt ind pr. mail (medarbejdernavne, interne tidsforbrug) holdes lokalt
+kildefiler/manuelle-opgaver/

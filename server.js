@@ -22,6 +22,10 @@ const { createPropertyMatcher } = require('./services/cibus-property-matcher');
 const { createInspectionService, buildInspectionAnalytics, AGE_BUCKETS } = require('./services/inspection-service');
 const { createReportService, buildReportAnalytics } = require('./services/report-service');
 const { createContractService } = require('./services/contract-service');
+const { createManualTaskService } = require('./services/manual-task-service');
+
+// Opgaver uden for Propbinder (fx Stokas tidsforbrug pr. mail): JSON-filer i kildefiler/manuelle-opgaver.
+const manualTaskService = createManualTaskService({ root: process.env.MANUAL_TASKS_PATH ? path.resolve(process.env.MANUAL_TASKS_PATH) : path.join(__dirname, 'kildefiler', 'manuelle-opgaver') });
 
 // Kontrakter: a folder per active Cibus property (CONTRACTS_PATH, default kildefiler/kontrakter).
 const contractService = createContractService({ root: process.env.CONTRACTS_PATH ? path.resolve(process.env.CONTRACTS_PATH) : path.join(__dirname, 'kildefiler', 'kontrakter') });
@@ -311,6 +315,10 @@ app.get('/propbinder-tasks', requireAuth, requireAdmin, async (req, res) => {
   try {
     if (!cibusPropertyList && propertyRegisterService.configured) await refreshCibusPropertyList();
     tasks = await propbinderService.getTasks();
+    // Tasks reported outside Propbinder (by mail) are shown in the same list, marked with their source.
+    const manual = manualTaskService.getTasks(cibusPropertyList ? cibusPropertyList.byNumber : new Map());
+    if (manual.errors.length) console.error('Manuelle opgaver:', manual.errors.join('; '));
+    tasks = [...tasks, ...manual.tasks].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   } catch (fetchError) {
     error = fetchError.message;
   }
