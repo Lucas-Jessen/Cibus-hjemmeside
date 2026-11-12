@@ -140,7 +140,7 @@ const notificationAreas = [
     })) }),
   },
   {
-    key: 'tilsyn', label: 'Brand tilsyn', href: '/tilsyn?view=liste', description: 'Nye tilsynsdatoer og ændrede bemærkninger.',
+    key: 'tilsyn', label: 'Tilsyn af ejendomme', href: '/tilsyn?view=liste', description: 'Nye tilsynsdatoer og ændrede bemærkninger.',
     load: async () => ({ items: inspectionService.getInspections().inspections.map((item) => ({ key: item.name, label: `${item.name}${item.propertyNumber ? ` (${item.propertyNumber})` : ''}`, fields: { 'Seneste tilsyn': day(item.latest), 'Forrige tilsyn': day(item.previous), Bemærkning: item.remark } })) }),
   },
   {
@@ -343,7 +343,7 @@ async function ensureMatcher() {
 }
 
 app.get('/tilsyn', requireAuth, async (req, res) => {
-  const viewNav = viewNavigation('Brand tilsyn', '/tilsyn', [['dashboard', 'Dashboard'], ['liste', 'Tilsynsliste']], req.query.view);
+  const viewNav = viewNavigation('Tilsyn af ejendomme', '/tilsyn', [['dashboard', 'Dashboard'], ['liste', 'Tilsynsliste']], req.query.view);
   let inspections = [];
   let source = null;
   let error = null;

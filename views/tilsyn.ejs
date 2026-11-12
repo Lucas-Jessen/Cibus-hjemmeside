@@ -1,4 +1,4 @@
-<%- include('partials/head', { title: 'Brand tilsyn' }) %>
+<%- include('partials/head', { title: 'Tilsyn af ejendomme' }) %>
 <%
   const isDashboard = view === 'dashboard';
   const number = (value) => new Intl.NumberFormat('da-DK').format(value);
@@ -13,9 +13,9 @@
 <body class="app-shell">
   <%- include('partials/sidebar', { user, settings, currentPath }) %>
   <main class="main-content">
-    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/tilsyn">Brand tilsyn</a> <span>/</span> <strong><%= viewNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? 'Tilsynsark opdateret ' + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Tilsynsregistrering' %></div></header>
+    <header class="topbar"><div class="breadcrumb">Cibus <span>/</span> <a href="/tilsyn">Tilsyn af ejendomme</a> <span>/</span> <strong><%= viewNav.activeSection %></strong></div><div class="topbar-date"><span class="status-dot"></span> <%= source ? 'Tilsynsark opdateret ' + new Date(source.modifiedAt).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Tilsynsregistrering' %></div></header>
     <section class="page-content">
-      <div class="page-heading-row"><div><p class="eyebrow">BRAND TILSYN · CIBUS REAL ESTATE</p><h1>Brand tilsyn</h1><p class="page-subtitle">Registrering af tilsyn med Cibus' ejendomme: seneste og forrige tilsyn pr. ejendom, og hvor længe siden ejendommen er tilset. Data læses fra tilsynsarket<%= source ? ' "' + source.fileName + '"' : '' %> og kan ikke ændres her.</p></div><span class="mode-badge live"><span></span>Excel · <%= number(inspections.length) %> ejendomme</span></div>
+      <div class="page-heading-row"><div><p class="eyebrow">TILSYN AF EJENDOMME · CIBUS REAL ESTATE</p><h1>Tilsyn af ejendomme</h1><p class="page-subtitle">Registrering af tilsyn med Cibus' ejendomme: seneste og forrige tilsyn pr. ejendom, og hvor længe siden ejendommen er tilset. Data læses fra tilsynsarket<%= source ? ' "' + source.fileName + '"' : '' %> og kan ikke ændres her.</p></div><span class="mode-badge live"><span></span>Excel · <%= number(inspections.length) %> ejendomme</span></div>
       <%- include('partials/section-nav', { sectionNav: viewNav }) %>
       <% if (error) { %><div class="form-alert"><span>!</span><div><strong>Tilsynsarket kunne ikke læses</strong><p><%= error %></p></div></div><% } %>
 
@@ -104,7 +104,7 @@
           <div class="empty-state compact" data-filter-empty hidden><strong>Ingen tilsyn matcher filtrene</strong></div>
         </section>
       <% } %>
-      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span>Brand tilsyn · status beregnet pr. <%= new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) %></span></footer>
+      <footer class="page-footer"><span>© <%= new Date().getFullYear() %> <%= settings.company_name %></span><span>Tilsyn af ejendomme · status beregnet pr. <%= new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) %></span></footer>
     </section>
   </main>
 </body></html>
